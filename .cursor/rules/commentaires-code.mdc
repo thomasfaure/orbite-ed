@@ -1,0 +1,48 @@
+---
+description: Commenter le code non trivial pour la maintenance à long terme et placer un en-tête explicatif détaillé en tête de chaque fichier TypeScript.
+globs: **/*.ts,**/*.scss
+alwaysApply: false
+---
+
+# Commentaires et en-têtes de fichiers
+
+Le code doit rester compréhensible par une personne qui le reprend dans plusieurs mois, sans l'historique des conversations. Commentaires en français.
+
+## En-tête obligatoire de chaque fichier `.ts`
+
+Tout fichier `.ts` (sources et tests) commence par un bloc `/** … */` de plusieurs paragraphes :
+
+1. **Titre** : une ligne qui nomme le module.
+2. **Rôle** : ce que fait le fichier et pourquoi il existe dans Orbite.
+3. **Fonctionnement** : flux principal, données manipulées, où le code s'exécute (serveur Node, navigateur, NAS, tests).
+4. **Points d'attention** : invariants, contraintes de sécurité ou de l'API ÉcoleDirecte, pièges connus.
+5. **Liens** : principaux modules qui l'utilisent ou dont il dépend.
+
+Mettre l'en-tête à jour quand le rôle du fichier change.
+
+## Commentaires dans le code
+
+Commenter ce que le code ne peut pas montrer seul :
+
+- les **invariants et contraintes** (rotation des jetons, verrous, ordre de la cascade CSS) ;
+- les **raisons d'un choix** non évident, et les alternatives écartées ;
+- les **comportements externes** imposés (codes ÉcoleDirecte, formats d'API, fuseau de Paris) ;
+- les **expressions régulières**, formats binaires et calculs qui ne se lisent pas d'un coup d'œil ;
+- les **couplages invisibles** (un test qui dépend d'un nom de variable, un chemin servi par le serveur).
+
+Ne pas commenter :
+
+- ce que le nom ou la ligne dit déjà (paraphrase) ;
+- l'historique des modifications ou l'auteur (Git s'en charge) ;
+- du code mort laissé « pour plus tard ».
+
+```ts
+// ❌ Incrémente le compteur.
+generation++;
+
+// ✅ Invalide les réponses encore en vol : elles comparent leur `run` à `generation`
+//    et s'abandonnent si la session a changé entre-temps.
+generation++;
+```
+
+Les fonctions exportées non triviales reçoivent un commentaire `/** … */` décrivant leur contrat (entrées, sortie, valeurs `null`, erreurs levées).

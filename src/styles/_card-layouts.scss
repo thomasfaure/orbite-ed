@@ -1,0 +1,97 @@
+// Vue d'un élève : fiche à gauche, graphique détaillé à droite.
+.cards.individual-cards {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.individual-cards {
+  .student-summary {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+
+  .child-card {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .student-coaching {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .detailed-chart {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    margin: 0;
+    border: 0;
+    border-left: 1px solid var(--line);
+    border-radius: 0;
+    min-width: 0;
+    align-self: stretch;
+  }
+
+  .homework {
+    grid-column: 1 / -1;
+  }
+
+  .grade-chart {
+    min-width: 560px;
+  }
+
+  .chart-key {
+    gap: 10px;
+    font-size: 11px;
+  }
+}
+
+// Vue familiale : les sections des cartes voisines restent alignées (subgrid).
+.cards:not(.individual-cards) {
+  align-items: stretch;
+
+  > .student-summary {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .child-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+  }
+
+  .weekly-notes {
+    margin-top: auto;
+    min-height: 142px;
+  }
+
+  .student-coaching {
+    min-height: 112px;
+  }
+
+  .card-heading {
+    min-height: 56px;
+  }
+
+  .child-name small {
+    min-height: 30px;
+  }
+
+  .spark,
+  .spark-empty {
+    height: 54px;
+    flex-shrink: 0;
+  }
+
+  .class-gap {
+    min-height: 50px;
+  }
+}
+
+@supports (grid-template-rows: subgrid) {
+  .cards:not(.individual-cards) > .student-summary {
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    row-gap: 0;
+  }
+}

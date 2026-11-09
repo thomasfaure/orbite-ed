@@ -1,0 +1,183 @@
+// Cartes élèves de la vue familiale : moyenne, mini-courbe, tendance, écart à la classe et conseil IA.
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+  align-items: start;
+}
+
+.student-summary {
+  min-width: 0;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  overflow: hidden;
+
+  &.is-selected {
+    border-color: $selected;
+    box-shadow: 0 0 0 1px $selected;
+  }
+}
+
+.child-card {
+  @include card-accent($card-accent-default);
+  padding: 24px 24px 0;
+  text-align: left;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+
+  @each $rank, $colors in $card-accents {
+    &.accent-#{$rank} {
+      @include card-accent($colors);
+    }
+  }
+
+  &:focus-visible {
+    outline-offset: -5px;
+    border-radius: 20px 20px 0 0;
+  }
+}
+
+.card-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  .avatar {
+    width: 52px;
+    height: 52px;
+    font-size: 21px;
+  }
+}
+
+.child-name {
+  font-size: 18px;
+  font-weight: 650;
+  color: #36394f;
+  min-width: 0;
+
+  small {
+    display: block;
+    color: #828397;
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    line-height: 1.5;
+    margin-top: 5px;
+    font-weight: 400;
+  }
+}
+
+.card-arrow {
+  margin-left: auto;
+  display: block;
+  color: var(--accent);
+  background: #ffffffa0;
+  border-radius: 50%;
+  width: 29px;
+  height: 29px;
+  text-align: center;
+  padding: 3px;
+  font-size: 19px;
+}
+
+.card-score {
+  font-size: 42px;
+  font-weight: 600;
+  color: #353b53;
+  letter-spacing: -1.5px;
+  margin-top: 22px;
+  line-height: 1.2;
+
+  > span {
+    color: #8e93a7;
+    font-size: 17px;
+    margin-left: 6px;
+    letter-spacing: 0;
+  }
+}
+
+.score-label {
+  color: #828397;
+  font-size: 11px;
+  display: block;
+  margin-top: 6px;
+}
+
+.spark {
+  display: block;
+  width: 100%;
+  height: 54px;
+  color: var(--accent);
+  margin: 10px 0 0;
+  opacity: 0.75;
+
+  &-empty {
+    height: 54px;
+    display: flex;
+    align-items: center;
+    font-size: 10px;
+    color: #9294a7;
+  }
+}
+
+.card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  padding: 2px 0 14px;
+
+  > span:last-child {
+    font-size: 11px;
+    color: #8c8ba0;
+  }
+
+  small {
+    font-size: 10px;
+  }
+}
+
+.up {
+  color: #298465;
+}
+
+.down {
+  color: #bd6350;
+}
+
+.class-gap {
+  border-top: 1px solid #e8e9ef;
+  color: #7b7f94;
+  font-size: 11px;
+  padding: 16px 0;
+}
+
+.student-coaching {
+  padding: 15px 24px 18px;
+  background: #f7f6fc;
+  border-top: 1px solid var(--line);
+  color: #49435e;
+
+  small {
+    font-size: 10px;
+    color: #81758f;
+  }
+
+  p {
+    margin: 7px 0 0;
+    font-size: 13px;
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+}

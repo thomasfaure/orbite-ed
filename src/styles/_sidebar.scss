@@ -1,0 +1,223 @@
+// Barre latérale fixe : marque, navigation, liste des élèves, bloc utilisateur et avatars.
+@use 'variables' as *;
+
+aside {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: $sidebar-width;
+  background: #fffdfb;
+  border-right: 1px solid #e8e6ef;
+  padding: 37px 23px 20px;
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 34px;
+  letter-spacing: -2px;
+  font-weight: 620;
+  color: #3f3a69;
+
+  img {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  &-dot {
+    color: $brand;
+  }
+}
+
+.workspace {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #7d7891;
+  margin: 34px 0 19px;
+
+  span {
+    border: 1px solid #dbe9df;
+    background: #f1f6f2;
+    border-radius: 4px;
+    padding: 3px 5px;
+    font-size: 8px;
+    color: #44795d;
+    letter-spacing: 1px;
+  }
+}
+
+nav {
+  display: grid;
+  gap: 7px;
+}
+
+.nav {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  color: #71728a;
+  border-radius: 8px;
+  padding: 13px 12px;
+  font-size: 19px;
+
+  span {
+    font-size: 12px;
+  }
+
+  &.active {
+    color: $brand-ink;
+    background: $brand-soft;
+  }
+}
+
+.nav:hover,
+.child-nav:hover {
+  background: #f1eff9;
+}
+
+.nav-label {
+  margin: 35px 10px 17px;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #7d7891;
+  display: flex;
+  justify-content: space-between;
+}
+
+.children-nav {
+  display: grid;
+  gap: 3px;
+  overflow: auto;
+}
+
+.child-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 10px;
+  border-radius: 8px;
+  text-align: left;
+  background: transparent;
+  font-size: 12px;
+  color: #454960;
+
+  &.active {
+    background: $brand-soft;
+    color: #594790;
+  }
+
+  small {
+    margin-left: auto;
+    font-size: 10px;
+    color: #818498;
+  }
+}
+
+.aside-bottom {
+  margin-top: auto;
+  padding-top: 30px;
+}
+
+.privacy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  padding: 16px 10px;
+  margin-bottom: 8px;
+  color: #637969;
+
+  > span {
+    font-size: 25px;
+    color: #74a48a;
+  }
+}
+
+.privacy small,
+.user small {
+  display: block;
+  font-size: 9px;
+  color: #7e8794;
+  margin-top: 5px;
+}
+
+.aside-bottom .nav {
+  gap: 8px;
+  padding: 10px 4px;
+
+  span {
+    font-size: 10px;
+  }
+}
+
+.user {
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+  padding-top: 22px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+}
+
+// Avatars : photo ÉcoleDirecte ou initiale, colorés selon l'accent de la carte.
+.avatar {
+  height: 39px;
+  width: 39px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent, #{$brand}) 14%, white);
+  color: var(--accent, #{$brand-ink});
+  font-size: 16px;
+  font-weight: 550;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px #35305612;
+
+  &.mini {
+    height: 33px;
+    width: 33px;
+    font-size: 12px;
+  }
+}
+
+.child-avatar {
+  position: relative;
+  overflow: hidden;
+  vertical-align: middle;
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+  }
+}
+
+.child-nav .child-avatar {
+  width: 27px;
+  height: 27px;
+  font-size: 10px;
+}
+
+.icon-button {
+  background: transparent;
+  color: #767188;
+  margin-left: auto;
+  font-size: 18px;
+  padding: 8px;
+}

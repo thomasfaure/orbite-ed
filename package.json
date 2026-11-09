@@ -1,1 +1,31 @@
-{"name":"orbite-famille","version":"1.0.0","private":true,"type":"module","description":"Tableau de bord familial ÉcoleDirecte, local et sans dépendance","engines":{"node":">=22"},"scripts":{"start":"node server.js","dev":"node --watch server.js","test":"node --test"}}
+{
+  "name": "orbite-famille",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tableau de bord familial ÉcoleDirecte, local et sans dépendance d'exécution",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "clean": "node -e \"process.getBuiltinModule('node:fs').rmSync('dist', {recursive: true, force: true})\"",
+    "build": "npm run clean && tsc -p tsconfig.build.json && npm run build:styles",
+    "build:styles": "sass --no-source-map --style=compressed src/styles/main.scss dist/style.css",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.client.json",
+    "prestart": "npm run build",
+    "start": "node dist/server/server.js",
+    "predev": "npm run build",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput & npm run build:styles -- --watch & node --watch dist/server/server.js",
+    "pretest": "npm run build",
+    "test": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test 'test/**/*.test.ts'",
+    "check": "npm run typecheck && npm run format:check && npm test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "prettier": "3.9.10",
+    "sass": "1.108.1",
+    "typescript": "7.0.2"
+  }
+}

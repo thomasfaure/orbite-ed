@@ -1,0 +1,224 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// Placé en dernier : ces règles doivent surcharger les styles de base.
+@include max-width($breakpoint-compact) {
+  aside {
+    width: $sidebar-width-compact;
+    padding: 30px 15px;
+  }
+
+  main {
+    margin-left: $sidebar-width-compact;
+    padding: 0 26px;
+  }
+
+  .cards {
+    gap: 10px;
+  }
+
+  .child-card {
+    padding: 20px 17px 0;
+  }
+
+  .card-heading {
+    gap: 8px;
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+    }
+  }
+
+  .child-name {
+    font-size: 15px;
+  }
+
+  .card-arrow {
+    display: none;
+  }
+
+  .grades-panel .panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@include max-width($breakpoint-individual) {
+  .individual-cards {
+    .student-summary {
+      display: block;
+    }
+
+    .detailed-chart {
+      border-left: 0;
+      border-top: 1px solid var(--line);
+    }
+  }
+}
+
+@include max-width($breakpoint-mobile) {
+  aside {
+    position: relative;
+    width: 100%;
+    height: auto;
+    padding: 18px 20px;
+    flex-direction: row;
+    align-items: center;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    gap: 20px;
+  }
+
+  .brand {
+    font-size: 27px;
+
+    img {
+      width: 32px;
+      height: 32px;
+    }
+  }
+
+  aside nav {
+    display: flex;
+    margin-left: auto;
+    gap: 5px;
+  }
+
+  .nav {
+    padding: 9px;
+  }
+
+  .nav span,
+  aside .workspace,
+  .nav-label,
+  .children-nav,
+  .aside-bottom {
+    display: none;
+  }
+
+  main {
+    margin-left: 0;
+    padding: 0 18px;
+  }
+
+  header {
+    height: 56px;
+  }
+
+  .header-right {
+    font-size: 7px;
+
+    .small-button {
+      font-size: 9px;
+      margin-left: 2px;
+    }
+  }
+
+  .breadcrumb {
+    display: none;
+  }
+
+  .sidebar-toggle {
+    margin-right: 8px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 0;
+  }
+
+  .filters {
+    flex-wrap: wrap;
+  }
+
+  .toolbar .filters {
+    width: 100%;
+    flex-wrap: wrap;
+
+    select {
+      flex: 1 1 160px;
+      min-width: 0;
+    }
+  }
+
+  .compact-heading {
+    padding: 12px 0 0;
+
+    h1 {
+      font-size: 20px;
+    }
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .child-card {
+    padding: 23px 22px 0;
+  }
+
+  .card-heading .avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .child-name {
+    font-size: 18px;
+  }
+
+  .section-heading h2 {
+    font-size: 17px;
+  }
+
+  .panel {
+    padding: 20px;
+  }
+
+  .grades-panel {
+    padding: 20px 15px 0;
+  }
+
+  .grade-legend {
+    gap: 10px;
+    font-size: 9px;
+  }
+
+  .table-footer,
+  footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  footer {
+    font-size: 8px;
+  }
+
+  .welcome {
+    padding: 24px;
+  }
+
+  .grades-panel {
+    .filters {
+      width: 100%;
+    }
+
+    input {
+      width: 100%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+
+  .spinner {
+    animation: none;
+    border-style: dotted;
+  }
+}

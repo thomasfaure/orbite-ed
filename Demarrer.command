@@ -5,5 +5,9 @@ if ! command -v node >/dev/null 2>&1; then
   read '?Appuyez sur Entrée pour fermer.'
   exit 1
 fi
+if [[ ! -d node_modules ]]; then
+  print 'Installation des outils de compilation…'
+  npm install || { read '?Installation impossible. Appuyez sur Entrée pour fermer.'; exit 1; }
+fi
 print 'Ouvrez http://127.0.0.1:3210 dans votre navigateur.'
-node server.js
+npm start

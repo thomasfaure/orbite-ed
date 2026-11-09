@@ -1,0 +1,227 @@
+// Accueil, boutons d'action, fenêtre de connexion et indicateurs d'attente.
+.welcome {
+  display: block;
+  padding: 30px;
+  background: #fff;
+  border: 1px solid #e1dbed;
+  border-radius: 16px;
+  margin: 20px 0 25px;
+
+  h2 {
+    font-size: 22px;
+    color: #474361;
+    letter-spacing: -0.3px;
+    margin: 0;
+  }
+
+  p {
+    font-size: 12px;
+    color: #838098;
+    margin-top: 12px;
+  }
+
+  &-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 30px 0 0;
+  }
+}
+
+.primary {
+  padding: 14px 19px;
+  border: 1px solid #8270b6;
+  background: #8270b6;
+  color: #fff;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  &:hover {
+    background: #71609f;
+  }
+}
+
+.secondary {
+  background: #ffffff99;
+  border: 1px solid #d6ccdf;
+  border-radius: 11px;
+  padding: 12px 17px;
+  color: #827095;
+  font-size: 11px;
+}
+
+.empty {
+  padding: 55px 20px;
+  text-align: center;
+  color: #9290a3;
+  font-size: 12px;
+}
+
+.fine {
+  font-size: 10px;
+  color: #9290a3;
+  line-height: 1.8;
+}
+
+dialog {
+  border: 1px solid #ded6ec;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at top, #eee7f8, #fff 65%);
+  color: var(--text);
+  width: 440px;
+  max-width: calc(100% - 30px);
+  padding: 36px;
+  box-shadow: 0 30px 120px #42305630;
+
+  &::backdrop {
+    background: #4e426448;
+    backdrop-filter: blur(8px);
+  }
+
+  h2 {
+    font-size: 26px;
+    margin-bottom: 12px;
+    color: #605174;
+  }
+
+  > .muted {
+    font-size: 11px;
+  }
+
+  .mark {
+    font-size: 45px;
+    color: #a08ab9;
+    margin-bottom: 20px;
+  }
+
+  form {
+    margin: 25px 0 18px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    color: #82738f;
+    margin-bottom: 17px;
+  }
+
+  input:not([type='radio']) {
+    display: block;
+    width: 100%;
+    padding: 13px;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  .full {
+    width: 100%;
+    margin-top: 20px;
+  }
+
+  .close {
+    position: absolute;
+    right: 18px;
+    top: 12px;
+    background: transparent;
+    font-size: 25px;
+    color: #92849d;
+  }
+}
+
+.error {
+  font-size: 12px;
+  color: #c15467;
+  line-height: 1.6;
+}
+
+.choice {
+  padding: 12px;
+  background: #f6f2fa;
+  border-radius: 7px;
+  cursor: pointer;
+
+  input {
+    margin-right: 7px;
+    accent-color: var(--mint);
+  }
+}
+
+#toast {
+  position: fixed;
+  bottom: 25px;
+  left: 50%;
+  transform: translate(-50%, 20px);
+  border: 1px solid #d8cce7;
+  border-radius: 9px;
+  padding: 13px 20px;
+  background: #fff;
+  color: #756184;
+  box-shadow: 0 10px 30px #53406716;
+  font-size: 12px;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.2s;
+  max-width: 90vw;
+
+  &.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e6e0f1;
+  border-top-color: #7861ad;
+  border-radius: 50%;
+  animation: orbite-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 36px 20px;
+
+  strong {
+    display: block;
+    margin-top: 18px;
+  }
+
+  p {
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  h2 {
+    margin-top: 18px;
+  }
+}
+
+.inline-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  min-height: 64px;
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border-width: 2px;
+  }
+}
+
+@keyframes orbite-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,71 @@
+---
+description: Règles de comportement destinées à réduire les erreurs courantes de codage commises par les LLM. À utiliser lors de l’écriture, de la relecture ou du refactoring de code afin d’éviter la surcomplexité, d’effectuer des modifications chirurgicales, d’expliciter les hypothèses et de définir des critères de réussite vérifiables.
+alwaysApply: true
+---
+
+# Règles comportementales LLM
+
+Règles de comportement destinées à réduire les erreurs courantes de codage commises par les LLM. À fusionner avec les instructions propres au projet si nécessaire.
+
+**Compromis :** ces règles privilégient la prudence plutôt que la rapidité. Pour les tâches triviales, faites preuve de discernement.
+
+## 1. Réfléchir avant de coder
+
+**Ne pas présupposer. Ne pas masquer la confusion. Expliciter les compromis.**
+
+Avant d’implémenter :
+- Énoncer explicitement les hypothèses. En cas d’incertitude, demander.
+- Si plusieurs interprétations existent, les présenter — ne pas choisir silencieusement.
+- Si une approche plus simple existe, le signaler. Contester la demande lorsque c’est justifié.
+- Si quelque chose n’est pas clair, s’arrêter. Nommer ce qui prête à confusion. Demander.
+
+## 2. La simplicité d’abord
+
+**Le minimum de code qui résout le problème. Rien de spéculatif.**
+
+- Aucune fonctionnalité au-delà de ce qui a été demandé.
+- Aucune abstraction pour du code à usage unique.
+- Aucune « flexibilité » ou « configurabilité » non demandée.
+- Aucune gestion d’erreur pour des scénarios impossibles.
+- Si vous écrivez 200 lignes alors que cela pourrait en faire 50, réécrire.
+
+Se demander : « Un ingénieur senior dirait-il que c’est trop compliqué ? » Si oui, simplifier.
+
+## 3. Modifications chirurgicales
+
+**Ne toucher qu’à ce qui est nécessaire. Ne nettoyer que ce que vous avez vous-même sali.**
+
+Lors de la modification de code existant :
+- Ne pas « améliorer » le code adjacent, les commentaires ou le formatage.
+- Ne pas refactorer ce qui n’est pas cassé.
+- Respecter le style existant, même si vous feriez différemment.
+- Si vous remarquez du code mort sans rapport avec la demande, le mentionner — ne pas le supprimer.
+
+Lorsque vos modifications créent des éléments orphelins :
+- Supprimer les imports, variables ou fonctions rendus inutilisés par VOS modifications.
+- Ne pas supprimer du code mort préexistant sauf si cela est demandé.
+
+Le test : chaque ligne modifiée doit pouvoir être directement rattachée à la demande de l’utilisateur.
+
+## 4. Exécution guidée par l’objectif
+
+**Définir les critères de réussite. Boucler jusqu’à vérification.**
+
+Transformer les tâches en objectifs vérifiables :
+- « Ajouter une validation » → « Écrire des tests pour les entrées invalides, puis les faire passer »
+- « Corriger le bug » → « Écrire un test qui le reproduit, puis le faire passer »
+- « Refactorer X » → « Vérifier que les tests passent avant et après »
+
+Pour les tâches en plusieurs étapes, énoncer un plan bref :
+
+```text
+1. [Étape] → vérifier : [contrôle]
+2. [Étape] → vérifier : [contrôle]
+3. [Étape] → vérifier : [contrôle]
+```
+
+Des critères de réussite solides vous permettent de boucler la boucle de manière indépendante. Des critères faibles (« faire en sorte que ça marche ») nécessitent des clarifications constantes.
+
+---
+
+**Ces directives fonctionnent si :** il y a moins de modifications inutiles dans les diffs, moins de réécritures dues à une complication excessive, et si les questions de clarification surviennent avant la mise en œuvre plutôt qu’après les erreurs.

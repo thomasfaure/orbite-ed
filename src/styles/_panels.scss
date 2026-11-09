@@ -1,0 +1,280 @@
+// Panneaux d'analyse : alertes de baisse, tableau « Toutes les notes » (couleurs de notes, écarts), méthode et pied de page.
+@use 'variables' as *;
+
+.panel {
+  background: #fff;
+  border: 1px solid #e5e5ef;
+  border-radius: 20px;
+  padding: 23px;
+  box-shadow: 0 5px 20px #33325904;
+
+  &-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+}
+
+.analysis-grid {
+  display: block;
+  margin-bottom: 26px;
+}
+
+.focus-panel {
+  padding: 22px 26px;
+
+  h2 {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: #5e5480;
+  }
+
+  > p.muted {
+    margin-bottom: 0;
+    font-size: 13px;
+  }
+}
+
+.insight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: transparent;
+  padding: 13px 0;
+  border-bottom: 1px solid #e4def0;
+  width: 100%;
+  color: #5b5470;
+
+  strong {
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  small {
+    font-size: 11px;
+    color: #80768f;
+    display: block;
+    margin-top: 6px;
+  }
+
+  > span:last-child {
+    margin-left: auto;
+    color: #9e8dbc;
+  }
+
+  &-dot {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #ffeadc;
+    color: #c17d4c;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+}
+
+.grades-panel {
+  padding: 26px 24px 0;
+}
+
+.count {
+  font-size: 11px;
+  background: #efedf7;
+  color: #8575a6;
+  border-radius: 5px;
+  padding: 3px 7px;
+  margin-left: 7px;
+}
+
+.grades-panel {
+  .panel-heading {
+    margin-bottom: 18px;
+  }
+
+  h2 {
+    font-size: 21px;
+  }
+}
+
+.table-scroll {
+  overflow: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #8a88a2;
+  padding: 15px 12px;
+  background: #f7f7fc;
+  border-top: 1px solid #e9e9f3;
+  border-bottom: 1px solid #e9e9f3;
+}
+
+td {
+  padding: 17px 12px;
+  border-bottom: 1px solid #f0eff5;
+  font-size: 12px;
+
+  strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4c4e68;
+  }
+
+  &:first-child small {
+    display: block;
+    max-width: 290px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 10px;
+    color: #8c8ca2;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  small {
+    color: #9693a8;
+    font-size: 9px;
+  }
+}
+
+tbody tr:hover {
+  background: #faf9fd;
+}
+
+.grade-student {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  .child-avatar {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+.subject-chip {
+  border: 1px solid #ebe9f3;
+  border-radius: 7px;
+  padding: 5px 7px;
+  background: #f6f5fa;
+  color: #7c7394;
+  font-size: 10px;
+}
+
+.note-value {
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.class-value {
+  color: #79768c;
+  font-size: 14px;
+}
+
+.grade-good {
+  color: $grade-good;
+}
+
+.grade-average {
+  color: $grade-average;
+}
+
+.grade-poor {
+  color: $grade-poor;
+}
+
+.grade-neutral {
+  color: $grade-neutral;
+}
+
+.note-value {
+  &.grade-good {
+    background: #f1faf5;
+  }
+
+  &.grade-average {
+    background: #fff8ee;
+  }
+
+  &.grade-poor {
+    background: #fff3f5;
+  }
+}
+
+.gap {
+  font-size: 10px;
+  display: inline-block;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #edf7f1;
+
+  &.down {
+    background: #fff0e9;
+  }
+
+  &.muted {
+    background: #f5f4f9;
+  }
+}
+
+.grade-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding-top: 17px;
+  font-size: 10px;
+
+  > span:last-child {
+    color: #9290a5;
+  }
+}
+
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 0;
+  color: #9994aa;
+  font-size: 9px;
+}
+
+.method {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #88819b;
+  padding: 22px 0;
+
+  summary {
+    cursor: pointer;
+    color: #79698f;
+  }
+
+  p {
+    max-width: 1000px;
+  }
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 10px;
+  color: #9a91a9;
+  padding: 24px 0 27px;
+  border-top: 1px solid #e8e5ef;
+  margin-top: 12px;
+}

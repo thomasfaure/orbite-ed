@@ -1,0 +1,106 @@
+// Graphique détaillé d'un élève (SVG généré par detailedChart dans app.ts) : axes, grille, légende et trois séries.
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.detailed-chart {
+  margin: 24px 0;
+
+  h2 {
+    font-size: 20px;
+  }
+
+  .panel-heading > .muted {
+    font-size: 12px;
+  }
+}
+
+.chart-scroll {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.grade-chart {
+  display: block;
+  width: 100%;
+  min-width: 640px;
+  height: auto;
+
+  text {
+    font-size: 12px;
+    fill: #74778d;
+  }
+}
+
+.chart-grid {
+  stroke: #eceaf2;
+  stroke-width: 1;
+}
+
+.chart-axis {
+  @include chart-series(#aaa6b8, 1);
+}
+
+.series-student {
+  @include chart-series($series-student, 1.7);
+}
+
+.series-class {
+  @include chart-series($series-class, 2);
+  stroke-dasharray: 6 5;
+}
+
+.series-trend {
+  @include chart-series($series-trend, 3.5);
+}
+
+.grade-chart circle {
+  &.series-student {
+    fill: $series-student;
+  }
+
+  &.series-class {
+    fill: $series-class;
+  }
+
+  &.series-trend {
+    fill: $series-trend;
+  }
+}
+
+.chart-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 18px;
+  font-size: 12px;
+  color: #626077;
+
+  span:before {
+    content: '';
+    display: inline-block;
+    width: 22px;
+    border-top: 3px solid;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+}
+
+.key-student:before {
+  color: $series-student;
+}
+
+.key-class:before {
+  color: $series-class;
+  border-top-style: dashed !important;
+}
+
+.key-trend:before {
+  color: $series-trend;
+}
+
+.chart-explanation {
+  font-size: 11px;
+  line-height: 1.7;
+  color: #7b7b90;
+  margin: 12px 0 0;
+}

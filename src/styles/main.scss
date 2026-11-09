@@ -1,0 +1,13 @@
+// Orbite — feuille de style compilée vers dist/style.css (servie en /style.css).
+// L'ordre des modules suit la cascade : les surcharges responsives restent en dernier.
+@use 'base';
+@use 'sidebar';
+@use 'layout';
+@use 'cards';
+@use 'weekly-notes';
+@use 'homework';
+@use 'panels';
+@use 'chart';
+@use 'card-layouts';
+@use 'dialog';
+@use 'responsive';

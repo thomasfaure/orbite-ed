@@ -1,0 +1,77 @@
+// Aperçu « 7 derniers jours » dans chaque carte élève (trois notes au plus et lien vers le tableau).
+.weekly-notes {
+  display: block;
+  border-top: 1px solid #e5e6ee;
+  padding: 13px 0 16px;
+  text-align: left;
+}
+
+.weekly-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 650;
+  color: #53536b;
+  margin-bottom: 8px;
+
+  small {
+    font-size: 9px;
+    font-weight: 400;
+    color: #858396;
+    white-space: nowrap;
+  }
+}
+
+.weekly-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 11px;
+  min-width: 0;
+  min-height: 26px;
+}
+
+.weekly-subject {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #646278;
+}
+
+.weekly-note {
+  time {
+    font-size: 9px;
+    color: #858396;
+    white-space: nowrap;
+  }
+
+  strong {
+    font-size: 12px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+
+    small {
+      font-size: 9px;
+      font-weight: 400;
+      margin-left: 2px;
+      color: #8c8799;
+    }
+  }
+}
+
+.weekly-empty,
+.weekly-more {
+  display: block;
+  font-size: 10px;
+  color: #858396;
+  line-height: 1.5;
+}
+
+.weekly-more {
+  margin-top: 6px;
+}

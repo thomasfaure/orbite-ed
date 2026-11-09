@@ -1,0 +1,65 @@
+// Palette exposée en propriétés CSS dans :root ; les valeurs Sass servent à la compilation.
+$bg: #f7f8fc;
+$surface: #fff;
+$line: #e5e8f1;
+$text: #29334d;
+$muted: #69758d;
+$mint: #287c63;
+$down: #bc584a;
+
+$font-stack:
+  ui-rounded,
+  'SF Pro Rounded',
+  -apple-system,
+  BlinkMacSystemFont,
+  'Segoe UI',
+  sans-serif;
+
+$brand: #8270ce;
+$brand-ink: #62519b;
+$brand-soft: #eeebfb;
+$focus-ring: #8b72bc;
+$selected: #8b75be;
+
+$grade-good: #278463;
+$grade-average: #b56b18;
+$grade-poor: #cc4e62;
+$grade-neutral: #8a899d;
+
+$series-student: #589b86;
+$series-class: #96a0bb;
+$series-trend: #8056bc;
+
+$urgent: #b02e46;
+
+$sidebar-width: 240px;
+$sidebar-width-compact: 195px;
+
+// Couleur d'accent et teinte de fond des cartes élèves, par rang.
+$card-accents: (
+  1: (
+    #8b75be,
+    #f1ebfb,
+  ),
+  2: (
+    #c58a4e,
+    #fff2e2,
+  ),
+  3: (
+    #bc7898,
+    #fbeef4,
+  ),
+  4: (
+    #528fb4,
+    #eaf5fc,
+  ),
+  5: (
+    #979149,
+    #f8f7e9,
+  ),
+);
+$card-accent-default: (#4a937d, #edf8f2);
+
+$breakpoint-compact: 1150px;
+$breakpoint-individual: 1100px;
+$breakpoint-mobile: 760px;

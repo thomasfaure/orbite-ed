@@ -1,0 +1,158 @@
+// Panneau « Devoirs à faire » sous chaque carte : groupes par date, progression, marquage urgent, pagination.
+@use 'variables' as *;
+
+.homework {
+  padding: 20px 24px;
+  border-top: 1px solid var(--line);
+
+  &-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  h3 {
+    font-size: 15px;
+    margin: 0;
+  }
+
+  &-caption {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin: 8px 0;
+  }
+
+  &-list {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+
+    li {
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+    }
+  }
+
+  &-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    justify-content: space-between;
+    align-items: baseline;
+
+    strong {
+      font-size: 12px;
+    }
+  }
+
+  &-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.65;
+    margin: 9px 0 0;
+  }
+
+  &-tag {
+    display: inline-block;
+    font-size: 10px;
+    background: #f2eff9;
+    border-radius: 5px;
+    padding: 4px 6px;
+    margin-top: 8px;
+  }
+
+  &-warning {
+    color: #a14d30;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  &-link {
+    display: inline-block;
+    font-size: 11px;
+    color: #65518d;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .muted {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  &-date {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 22px 0 8px;
+    font-size: 11px;
+    color: #625679;
+
+    &:after {
+      content: '';
+      height: 1px;
+      background: var(--line);
+      flex: 1;
+      min-width: 12px;
+    }
+
+    time {
+      font-weight: 600;
+    }
+  }
+
+  &-progress {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    color: $mint;
+    font-variant-numeric: tabular-nums;
+
+    progress {
+      width: 42px;
+      height: 6px;
+      accent-color: $mint;
+    }
+  }
+
+  &-day &-list {
+    margin: 0;
+  }
+
+  &-list li.homework-urgent {
+    background: #fff2f3;
+    border: 1px solid #f1c6ce;
+    border-radius: 10px;
+    padding: 12px;
+    margin: 8px 0;
+    color: $urgent;
+  }
+}
+
+.urgent-label {
+  font-size: 10px;
+  color: $urgent;
+}
+
+.homework {
+  &-complete {
+    font-size: 11px;
+    color: $mint;
+  }
+
+  &-more {
+    display: block;
+    margin: 18px 0 14px;
+    width: 100%;
+    padding: 10px;
+
+    span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+  }
+}

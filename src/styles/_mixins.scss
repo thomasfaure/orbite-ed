@@ -1,0 +1,23 @@
+// Mixins partagés par les partiels ; ils ne produisent du CSS qu'à l'endroit où ils sont inclus.
+@use 'sass:list';
+
+// $colors = (accent, fond) : l'accent passe par --accent pour être réutilisé par
+// les éléments internes de la carte (avatar, flèche, mini-courbe), le fond est un dégradé vers le blanc.
+@mixin card-accent($colors) {
+  --accent: #{list.nth($colors, 1)};
+  background: linear-gradient(135deg, list.nth($colors, 2), #fff 75%);
+}
+
+// Requête média « écran au plus large que $breakpoint », pour les règles responsives.
+@mixin max-width($breakpoint) {
+  @media (max-width: $breakpoint) {
+    @content;
+  }
+}
+
+// Trait d'une courbe SVG du graphique détaillé (série élève, classe ou tendance).
+@mixin chart-series($color, $width) {
+  fill: none;
+  stroke: $color;
+  stroke-width: $width;
+}

@@ -1,10 +1,16 @@
 # Orbite · Tableau de bord familial ÉcoleDirecte
 
-Client web local en Node.js 22 ou supérieur. Aucune dépendance npm à installer, aucun compte externe, aucune compilation.
+Client web local écrit en TypeScript, exécuté par Node.js 22 ou supérieur. Aucune dépendance d'exécution, aucun compte externe. Les seules dépendances npm (TypeScript, types Node, Prettier) servent au développement et à la compilation.
 
 ## Lancer
 
-Dans ce dossier :
+Dans ce dossier, une première fois :
+
+```sh
+npm install
+```
+
+Puis à chaque lancement (la compilation vers `dist/` est automatique) :
 
 ```sh
 npm start
@@ -57,7 +63,8 @@ Les utilisateurs ayant accès à votre session macOS et à votre navigateur ouve
 ## Vérification et limites
 
 ```sh
-npm test
+npm test        # compile puis exécute les tests TypeScript
+npm run check   # contrôle de types, formatage et tests
 ```
 
 21 tests automatisés réussis : protocoles de connexion simulés, QCM, TOTP, rotation des jetons, expiration, comptes multiples, données partielles, calculs et protections HTTP. Les tests HTTP invoquent le gestionnaire directement sans ouvrir de socket.
@@ -79,13 +86,18 @@ Les paramètres de visibilité remontés par l’API sont pris en compte pour le
 
 ## Organisation
 
-- `server.js` : serveur HTTP local et sessions.
-- `lib/ecoledirecte.js` : transport, authentification, comptes et normalisation des notes.
-- `public/metrics.js` : calculs isolés et testables.
-- `public/app.js` : interface et interactions.
-- `public/style.css` : thème clair pastel et responsive.
-- `public/demo.js` : données fictives déterministes.
-- `test/` : tests sans dépendance, via `node:test`.
+- `src/server/server.ts` : serveur HTTP local et sessions.
+- `src/server/ecoledirecte.ts` : transport, authentification, comptes et normalisation des notes.
+- `src/server/openai.ts`, `src/server/session-store.ts` : IA côté serveur et coffre chiffré.
+- `src/server/restart-nas.ts` : redémarrage ciblé sur le NAS.
+- `src/shared/types.ts` : types du domaine partagés (notes, périodes, élèves, devoirs).
+- `src/shared/metrics.ts` : calculs isolés et testables, communs au serveur et au navigateur.
+- `src/client/app.ts` : interface et interactions.
+- `src/client/demo.ts` : données fictives déterministes.
+- `src/styles/` : thème clair pastel et responsive en SCSS, compilé vers `dist/style.css`.
+- `public/` : `index.html` et favicon.
+- `dist/` : JavaScript compilé, généré par `npm run build`, non suivi par Git.
+- `test/` : tests TypeScript via `node:test`.
 
 ## Mise à jour : collège et lycée
 
@@ -146,9 +158,11 @@ Les appels restent séquentiels pour respecter la rotation des jetons.
 expiration et erreurs partielles. Les devoirs réels restent à valider après
 déploiement et reconnexion sur le NAS.
 
-Pour déployer depuis le Mac, copier le dossier ed-family vers
-sshd@192.168.1.53:/mnt/HD/HD_a2/orbite/ puis exécuter sur le NAS :
-/mnt/HD/HD_a2/orbite/runtime/node /mnt/HD/HD_a2/orbite/ed-family/restart-nas.js
+Pour déployer depuis le Mac, exécuter `npm run build`, copier le dossier ed-family
+(au minimum `dist/`, `public/`, `start-nas.sh` et `package.json` ; `node_modules/`
+est inutile sur le NAS) vers sshd@192.168.1.53:/mnt/HD/HD_a2/orbite/ puis exécuter
+sur le NAS :
+/mnt/HD/HD_a2/orbite/runtime/node /mnt/HD/HD_a2/orbite/ed-family/dist/server/restart-nas.js
 
 Le redémarrage cible uniquement les processus Node du même exécutable et
 dossier, exécutant server.js avec le marqueur ORBITE_NAS_INSTANCE, ou le port configuré pour les anciennes installations.
@@ -185,10 +199,10 @@ pas de faux compteurs de progression.
 
 ## Sessions persistantes chiffrées
 
-Activées automatiquement avec node server.js. Coffre AES-256-GCM avec nonce
+Activées automatiquement au démarrage du serveur. Coffre AES-256-GCM avec nonce
 aléatoire, écrit atomiquement et synchronisé avant la réponse API. Clé aléatoire
 locale de 32 octets, fichiers 0600 et dossier 0700. Répertoire par défaut :
-.orbite-data/PORT/ à côté de server.js (donc indépendant du dossier courant).
+.orbite-data/PORT/ à la racine du projet (donc indépendant du dossier courant).
 ORBITE_DATA_DIR permet d'utiliser un emplacement durable dédié, hors partage
 public. Ne pas utiliser le même dossier pour deux serveurs simultanés.
 La clé et le coffre doivent rester ensemble sur le même appareil. Ce chiffrement
@@ -231,8 +245,8 @@ présentes dans l'environnement ont priorité. Ne jamais copier cette clé dans
 
 Le front peut appeler le même serveur, sans clé :
 
-```js
-import {askAI} from '/ai.js';
+```ts
+import { askAI } from './ai.ts'; // depuis src/client/, servi en /client/ai.js
 const {text, complete, refused, usage} = await askAI(
   'Propose une méthode pour organiser une semaine de révision.'
 );
@@ -361,4 +375,51 @@ après changement d'adresse ou de port. Pour la première migration, conserver
 le port actuel afin de retrouver l'ancienne instance non marquée. Le coffre de
 sessions est lié au port ; changer de port peut demander une reconnexion.
 Après transfert des scripts mis à jour et configuration du `.env`, lancer
-`/mnt/HD/HD_a2/orbite/runtime/node /mnt/HD/HD_a2/orbite/ed-family/restart-nas.js`.
+`/mnt/HD/HD_a2/orbite/runtime/node /mnt/HD/HD_a2/orbite/ed-family/dist/server/restart-nas.js`.
+
+## TypeScript
+
+Tout le code (serveur, navigateur, tests) est écrit en TypeScript strict
+(`strict`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`,
+`erasableSyntaxOnly`). Les imports relatifs utilisent l'extension `.ts`, réécrite
+en `.js` à la compilation. Trois configurations :
+
+- `tsconfig.json` : contrôle de types de `src/` et `test/`, utilisé par l'éditeur ;
+- `tsconfig.build.json` : compilation de `src/` vers `dist/` ;
+- `tsconfig.client.json` : vérifie que le code navigateur n'utilise aucune API Node.
+
+Le navigateur et le NAS exécutent uniquement `dist/`, en JavaScript ES2023 : le
+NAS n'a besoin ni de TypeScript ni de `node_modules`. Les tests s'exécutent
+directement en TypeScript grâce au retrait des types natif de Node.
+
+Scripts : `npm run build`, `npm start`, `npm run dev` (recompilation et
+redémarrage automatiques), `npm run typecheck`, `npm test`, `npm run format`,
+`npm run check`.
+
+Les fichiers servis au navigateur deviennent `/client/*.js` et
+`/shared/metrics.js`, toujours sur liste blanche. Le coffre de sessions et `.env`
+restent à la racine : les sessions existantes sont conservées. `restart-nas`
+retrouve aussi bien les anciennes instances (`server.js`) que les nouvelles
+(`dist/server/server.js`). Après mise à jour sur le NAS, la première exécution
+de `restart-nas` doit donc être celle de `dist/server/restart-nas.js`.
+
+57 tests passent, identiques à la version JavaScript ; le mode démonstration a
+été vérifié dans le navigateur à partir de la version compilée.
+
+## Styles SCSS
+
+La feuille de style est écrite en SCSS dans `src/styles/` et compilée par Dart
+Sass (dépendance de développement) vers `dist/style.css`, toujours servie en
+`/style.css`. `main.scss` charge les modules (`@use`) dans l'ordre de la cascade :
+
+- `_variables.scss` : palette, couleurs des notes et des courbes, accents des
+  cartes élèves, largeurs de la barre latérale et points de rupture ;
+- `_mixins.scss` : accent de carte, requêtes média, séries de graphique ;
+- `_base`, `_sidebar`, `_layout`, `_cards`, `_weekly-notes`, `_homework`,
+  `_panels`, `_chart`, `_card-layouts`, `_dialog` : un module par zone ;
+- `_responsive.scss` : surcharges pour écrans étroits, en dernier.
+
+Les couleurs utilisées à l'exécution (`--accent`, `--line`, `--muted`…) restent
+des propriétés CSS personnalisées. `npm run build` compile aussi les styles ;
+`npm run dev` les recompile à chaque modification. Le CSS produit est identique
+à la feuille d'origine (vérifié par comparaison des sorties compilées).
