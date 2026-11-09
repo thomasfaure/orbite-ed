@@ -441,3 +441,9 @@ Les couleurs utilisées à l'exécution (`--accent`, `--line`, `--muted`…) res
 des propriétés CSS personnalisées. `npm run build` compile aussi les styles ;
 `npm run dev` les recompile à chaque modification. Le CSS produit est identique
 à la feuille d'origine (vérifié par comparaison des sorties compilées).
+
+## Licence
+
+[MIT](LICENSE) © 2026 Thomas Fauré. Projet indépendant, non affilié à
+ÉcoleDirecte ; fourni tel quel, sans garantie de fonctionnement si l'API privée
+d'ÉcoleDirecte évolue.

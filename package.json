@@ -1,9 +1,11 @@
 {
-  "name": "orbite-famille",
-  "version": "2.0.0",
+  "name": "orbite-ed",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Tableau de bord familial ÉcoleDirecte, local et sans dépendance d'exécution",
+  "author": "Thomas Fauré <thomas.faure@whaller.com>",
+  "license": "MIT",
   "engines": {
     "node": ">=24"
   },
