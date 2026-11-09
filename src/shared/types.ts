@@ -33,6 +33,8 @@ export interface Gradable {
   excluded?: boolean;
   date?: string | undefined;
   classAverage?: number | null;
+  /** Clé de matière `codeMatière:codeSousMatière` ; sans elle, toutes les notes forment une seule matière. */
+  subjectId?: string;
 }
 
 export interface Note extends Gradable {
@@ -52,6 +54,23 @@ export interface Note extends Gradable {
   excluded: boolean;
 }
 
+/**
+ * Matière ou sous-matière d'une période, telle que déclarée par l'établissement
+ * (`ensembleMatieres.disciplines` d'ÉcoleDirecte). Sert à pondérer les moyennes.
+ */
+export interface Subject {
+  /** `codeMatière:codeSousMatière`, même clé que `Note.subjectId` ; `codeMatière:` pour une matière. */
+  id: string;
+  label: string;
+  /** Sous-matière : son coefficient pondère la moyenne de sa matière parente. */
+  sub: boolean;
+  /** Coefficient de l'établissement ; 0 exclut la matière, `null` s'il n'est pas fourni. */
+  coefficient: number | null;
+  /** Moyennes officielles ÉcoleDirecte de la période ; `null` si absentes ou masquées. */
+  average: number | null;
+  classAverage: number | null;
+}
+
 /** Les champs optionnels reprennent ceux d'ÉcoleDirecte, qui peuvent manquer. */
 export interface Period {
   id?: string | undefined;
@@ -61,6 +80,8 @@ export interface Period {
   end?: string | undefined;
   average: number | null;
   classAverage: number | null;
+  /** Absent avec un serveur d'une version antérieure : chaque matière compte alors pour 1. */
+  subjects?: Subject[] | undefined;
 }
 
 /** Les devoirs faits ne sont jamais renvoyés ; `unknown` quand ÉcoleDirecte ne précise pas l'état. */

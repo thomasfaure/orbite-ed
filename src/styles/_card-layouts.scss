@@ -34,6 +34,15 @@
     grid-column: 1 / -1;
   }
 
+  .subjects-panel {
+    grid-column: 1 / -1;
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    min-width: 0;
+  }
+
   .grade-chart {
     min-width: 560px;
   }

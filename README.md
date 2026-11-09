@@ -56,12 +56,13 @@ Les mots de passe sont conservés en mémoire uniquement pendant la vérificatio
 
 Vue familiale et vue individuelle, toutes les notes de l’année renvoyées par ÉcoleDirecte, filtres par période et matière, recherche d’évaluation, affichage adapté aux écrans étroits, courbes de progression, comparaison à la classe et points d’attention par matière. Les prénoms du mode démo sont fictifs : les enfants réels sont découverts depuis votre compte.
 
-- **Moyenne indicative** : notes numériques ramenées sur 20 et pondérées par leurs coefficients. Les coefficients par matière ne sont pas appliqués ; cette moyenne n’est pas celle du bulletin.
-- **Moyenne officielle** : remplace la moyenne indicative d’une fiche lorsque vous choisissez une période précise et que l’API fournit sa moyenne générale.
-- **Tendance** : moyenne des 30 derniers jours moins celle des 30 jours précédents (ou 14 contre 14). Il faut des notes dans les deux fenêtres. Le filtre de période s’applique avant ce calcul. Des matières ou difficultés différentes peuvent expliquer une variation.
-- **Mini-courbes individuelles** : évolution chronologique des notes sur 20 dans chaque fiche. Le graphique collectif a été retiré.
-- **Écart à la classe** : différence moyenne pondérée entre l’enfant et la classe, uniquement sur les évaluations possédant les deux valeurs, ramenées sur 20.
-- **À accompagner** : matière en baisse d’au moins un point entre les deux fenêtres.
+- **Moyenne générale calculée** : calculée comme sur le bulletin. Les notes numériques sont ramenées sur 20 et pondérées par leur coefficient pour obtenir une moyenne par matière. Quand ÉcoleDirecte fournit les coefficients des sous-matières (Anglais › Écrit, Anglais › Oral), la matière est la moyenne pondérée de ses sous-matières. La moyenne générale est ensuite la moyenne des matières pondérée par les coefficients de l’établissement (par exemple philosophie coef. 8). Une matière de coefficient 0 ne compte pas ; sans coefficients connus, chaque matière compte pour 1.
+- **Moyenne officielle** : remplace la moyenne calculée d’une fiche lorsque vous choisissez une période précise et que l’API fournit sa moyenne générale.
+- **Moyennes par matière** : dans la vue d’un élève, un tableau donne pour chaque matière et sous-matière son coefficient, la moyenne calculée, la moyenne officielle d’ÉcoleDirecte (pour contrôle), la moyenne de classe et le nombre de notes.
+- **Évolution** : moyenne générale actuelle moins la moyenne générale d’il y a 30 jours (ou 14), c’est-à-dire calculée sans les notes de cette fenêtre. Il faut au moins une note avant la fenêtre. Le filtre de période s’applique avant ce calcul.
+- **Mini-courbes individuelles** : évolution chronologique de la moyenne générale calculée dans chaque fiche.
+- **Écart à la classe** : moyenne générale de l’enfant moins celle de la classe, calculées de la même façon, uniquement sur les évaluations possédant les deux valeurs, ramenées sur 20.
+- **À accompagner** : matière dont la moyenne a baissé d’au moins un point sur la fenêtre choisie.
 - ABS, notes en lettres, notes non significatives, barèmes invalides et coefficients nuls restent hors calcul. Les données absentes ne sont jamais transformées en zéro.
 
 Pas de classement entre frères et sœurs. Les indicateurs visent à alimenter un échange familial et à rendre les efforts visibles.

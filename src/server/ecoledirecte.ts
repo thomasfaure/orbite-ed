@@ -34,7 +34,17 @@
  * (filtre secondaire, date de Paris, photo), tests `auth`, `homework`, `metrics`.
  */
 import { isSecondary, parisDate, photoUrl } from '../shared/metrics.ts';
-import type { AuthResult, AuthState, Child, Dashboard, Homework, HomeworkPage, Note, Period } from '../shared/types.ts';
+import type {
+  AuthResult,
+  AuthState,
+  Child,
+  Dashboard,
+  Homework,
+  HomeworkPage,
+  Note,
+  Period,
+  Subject,
+} from '../shared/types.ts';
 
 const BASE = 'https://api.ecoledirecte.com/v3/';
 // Les en-têtes (User-Agent, Origin, Referer) imitent le site officiel pour être traités comme lui.
@@ -85,6 +95,11 @@ interface RawDiscipline {
   discipline?: string;
   libelleMatiere?: string;
   sousMatiere?: boolean;
+  /** Ligne de regroupement (« Pôle scientifique »…), pas une matière notée. */
+  groupeMatiere?: boolean;
+  coef?: unknown;
+  moyenne?: unknown;
+  moyenneClasse?: unknown;
 }
 
 interface RawPeriod {
@@ -779,6 +794,28 @@ function noteSubject(note: RawNote, periods: RawPeriod[]) {
 }
 
 /**
+ * Matières d'une période avec leurs coefficients, sans les lignes de regroupement.
+ * Une même clé n'est retenue qu'une fois (la première).
+ */
+function periodSubjects(period: RawPeriod, hideAverage: boolean, hideClass: boolean): Subject[] {
+  const subjects = new Map<string, Subject>();
+  for (const d of records<RawDiscipline>(period.ensembleMatieres?.disciplines)) {
+    const code = String(d.codeMatiere || '');
+    const id = `${code}:${d.codeSousMatiere || ''}`;
+    if (d.groupeMatiere || !code || subjects.has(id)) continue;
+    subjects.set(id, {
+      id,
+      label: String(d.discipline || d.libelleMatiere || code).trim(),
+      sub: !!d.sousMatiere || !!d.codeSousMatiere,
+      coefficient: number(d.coef),
+      average: hideAverage ? null : number(d.moyenne),
+      classAverage: hideClass ? null : number(d.moyenneClasse),
+    });
+  }
+  return [...subjects.values()];
+}
+
+/**
  * Convertit la réponse `notes.awp` au format partagé. Les réglages `parametrage`
  * de l'établissement sont respectés : une moyenne ou une note masquée sur
  * ÉcoleDirecte devient `null` (ou disparaît) dans Orbite.
@@ -786,6 +823,8 @@ function noteSubject(note: RawNote, periods: RawPeriod[]) {
 export function normalizeNotes(data: RawNotesData | null = {}): { periods: Period[]; notes: Note[] } {
   const settings = data?.parametrage || {};
   const periodes = records<RawPeriod>(data?.periodes);
+  const hideAverage = settings.affichageMoyenne === false;
+  const hideClass = settings.moyenneClasse === false;
   return {
     periods: periodes.map((p) => ({
       id: p.codePeriode || p.idPeriode,
@@ -797,7 +836,8 @@ export function normalizeNotes(data: RawNotesData | null = {}): { periods: Perio
         settings.affichageMoyenne === false || settings.moyenneGenerale === false
           ? null
           : number(p.ensembleMatieres?.moyenneGenerale),
-      classAverage: settings.moyenneClasse === false ? null : number(p.ensembleMatieres?.moyenneClasse),
+      classAverage: hideClass ? null : number(p.ensembleMatieres?.moyenneClasse),
+      subjects: periodSubjects(p, hideAverage, hideClass),
     })),
     notes:
       settings.affichageNote === false

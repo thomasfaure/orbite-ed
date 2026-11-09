@@ -17,6 +17,8 @@
  *   par le filtre `isSecondary` (la dernière, en grande section, n'a même aucune note).
  * - Aucun appel réseau : en démonstration, l'IA renvoie un texte fixe
  *   (`loadCoaching` dans `coaching-panel.ts`).
+ * - Les matières de la période portent des coefficients et l'anglais est scindé
+ *   en sous-matières (Écrit, Oral) pour illustrer le tableau des moyennes par matière.
  * - Toute évolution des types partagés doit être répercutée ici (le
  *   typage le signale).
  *
@@ -29,6 +31,7 @@ export function demoData(): Dashboard {
   const names = ['Gabriel', 'Louise', 'Arthur', 'Alice', 'Louis', 'Jeanne'];
   const classes = ['Terminale', '3e', '5e', 'CM2', 'CE1', 'Grande section'];
   const subjects = ['Mathématiques', 'Français', 'Histoire-géo', 'Anglais', 'Physique-chimie', 'SVT'];
+  const coefficients = [4, 4, 3, 3, 3, 2];
   const titles = ['Contrôle de connaissances', 'Évaluation de chapitre', 'Devoir maison', 'Expression écrite'];
   const instructions = [
     'Exercices 4 et 5 page 82. Justifier chaque réponse.',
@@ -63,10 +66,14 @@ export function demoData(): Dashboard {
                     2,
                 ),
               );
+              // L'anglais (indice 3) alterne entre deux sous-matières, comme sur ÉcoleDirecte.
+              const sub = i % 6 === 3 ? (Math.floor(i / 6) % 2 ? 'Oral' : 'Écrit') : '';
               return {
                 id: c * 100 + i,
-                subject,
-                subjectId: String(i % 6),
+                subject: sub ? `${subject} · ${sub}` : subject,
+                parentSubject: subject,
+                ...(sub ? { subSubject: sub } : {}),
+                subjectId: `${i % 6}:${sub}`,
                 title: titles[i % 4] ?? '',
                 date: date.toISOString().slice(0, 10),
                 period: 'demo',
@@ -105,7 +112,34 @@ export function demoData(): Dashboard {
         className: classes[c] ?? '',
         school: 'Établissement de démonstration',
         notes,
-        periods: [{ id: 'demo', label: 'Période de démonstration', start, end, average: null, classAverage: null }],
+        periods: [
+          {
+            id: 'demo',
+            label: 'Période de démonstration',
+            start,
+            end,
+            average: null,
+            classAverage: null,
+            subjects: [
+              ...subjects.map((label, k) => ({
+                id: `${k}:`,
+                label,
+                sub: false,
+                coefficient: coefficients[k] ?? null,
+                average: null,
+                classAverage: null,
+              })),
+              ...['Écrit', 'Oral'].map((label) => ({
+                id: `3:${label}`,
+                label,
+                sub: true,
+                coefficient: 1,
+                average: null,
+                classAverage: null,
+              })),
+            ],
+          },
+        ],
       };
     }),
   };

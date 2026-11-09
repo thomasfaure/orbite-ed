@@ -59,6 +59,7 @@ const assets = new Map<string, [file: URL, type: string]>([
     'client/format.js',
     'client/homework-panel.js',
     'client/state.js',
+    'client/subjects-panel.js',
     'client/views.js',
     'shared/metrics.js',
   ].map((file): [string, [URL, string]] => ['/' + file, [new URL('dist/' + file, projectRoot), 'text/javascript']]),

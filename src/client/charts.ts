@@ -4,7 +4,9 @@
  * Rôle : produire les deux graphiques d'un élève. La mini-courbe (`spark`) figure
  * sur chaque carte ; le graphique détaillé (`detailedChart`) remplace la
  * mini-courbe quand l'élève est sélectionné. Le second montre trois séries :
- * moyenne cumulée de l'élève, moyenne cumulée de classe et tendance glissante.
+ * moyenne cumulée de l'élève, moyenne cumulée de classe et tendance glissante,
+ * toutes calculées comme la moyenne générale (matières pondérées par les
+ * coefficients `subjects` de la période affichée).
  *
  * Fonctionnement : les points viennent de `gradeTimeline` (`src/shared/metrics.ts`)
  * et sont projetés dans un repère SVG fixe (`viewBox`). L'axe horizontal est
@@ -21,7 +23,7 @@
  * Liens : `views.ts` (`card`), `state.ts`, `format.ts`, `src/shared/metrics.ts`.
  */
 import { gradeTimeline } from '../shared/metrics.ts';
-import type { Child, Note } from '../shared/types.ts';
+import type { Child, Note, Subject } from '../shared/types.ts';
 import { e, fmt } from './format.ts';
 import { currentNotes, state } from './state.ts';
 
@@ -29,8 +31,8 @@ type TimelineField = 'average' | 'classAverage' | 'trend';
 
 // Mini-courbe d'une carte (276 × 72). L'échelle verticale couvre au moins 0 à 20
 // et s'élargit par paliers de 5 si une valeur en sort.
-export function spark(notes: Note[], cls = 'spark'): string {
-  const list = gradeTimeline(notes, state.days);
+export function spark(notes: Note[], subjects: readonly Subject[] = [], cls = 'spark'): string {
+  const list = gradeTimeline(notes, state.days, subjects);
   const first = list[0];
   const last = list.at(-1);
   if (!first || !last) return '<div class="spark-empty">Aucune moyenne disponible.</div>';
@@ -45,9 +47,9 @@ export function spark(notes: Note[], cls = 'spark'): string {
   return `<svg class="${cls}" viewBox="0 0 276 72" role="img" aria-label="Évolution de la moyenne cumulée de l’élève sur 20"><polyline points="${points}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${list.length === 1 ? `<circle cx="138" cy="${y(first.average)}" r="3" fill="currentColor"/>` : ''}</svg>`;
 }
 
-export function detailedChart(child: Child): string {
+export function detailedChart(child: Child, subjects: readonly Subject[] = []): string {
   const days = state.days;
-  const points = gradeTimeline(currentNotes(child), days);
+  const points = gradeTimeline(currentNotes(child), days, subjects);
   const first = points[0];
   const last = points.at(-1);
   if (!first || !last)
@@ -106,5 +108,5 @@ export function detailedChart(child: Child): string {
   let grid = '';
   for (let v = ymin; v <= ymax; v += 5)
     grid += `<line x1="${left}" x2="${right}" y1="${y(v)}" y2="${y(v)}" class="chart-grid"/><text x="${left - 12}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
-  return `<section class="panel detailed-chart" aria-label="Évolution des notes de ${e(child.name)}"><div class="panel-heading"><h2>Évolution des résultats</h2><span class="muted">Notes sur 20</span></div><div class="chart-key"><span class="key-student">Moyenne de l’élève</span><span class="key-class">Moyenne cumulée de classe</span><span class="key-trend">Tendance sur ${days} jours</span></div><div class="chart-scroll" tabindex="0" role="region" aria-label="Graphique défilant horizontalement sur petit écran"><svg class="grade-chart" viewBox="0 0 960 350" role="img" aria-label="Notes et moyennes de classe par date, tendance pondérée sur ${days} jours"><title>Évolution des résultats sur la période sélectionnée</title>${grid}<path d="M${left} ${top}V${bottom}H${right}" class="chart-axis"/>${ticks.map((t) => `<text x="${x(t)}" y="325" text-anchor="middle">${e(label(new Date(t).toISOString().slice(0, 10)))}</text>`).join('')}${line('average', 'series-student')}${line('classAverage', 'series-class')}${line('trend', 'series-trend')}</svg></div><p class="chart-explanation">Chaque point représente la moyenne cumulée depuis le début de la période sélectionnée, pondérée par les coefficients. La courbe de classe cumule les moyennes des mêmes évaluations lorsqu’elles sont disponibles ; ce n’est pas la moyenne générale officielle de la classe. La tendance est une moyenne glissante pondérée par les coefficients sur ${days} jours, à partir de deux notes ; ce n’est pas une prévision.${points.some((p) => p.classAverage !== null) ? '' : ' Moyennes de classe indisponibles.'} Survolez les points pour les détails.</p></section>`;
+  return `<section class="panel detailed-chart" aria-label="Évolution des notes de ${e(child.name)}"><div class="panel-heading"><h2>Évolution des résultats</h2><span class="muted">Notes sur 20</span></div><div class="chart-key"><span class="key-student">Moyenne de l’élève</span><span class="key-class">Moyenne cumulée de classe</span><span class="key-trend">Tendance sur ${days} jours</span></div><div class="chart-scroll" tabindex="0" role="region" aria-label="Graphique défilant horizontalement sur petit écran"><svg class="grade-chart" viewBox="0 0 960 350" role="img" aria-label="Notes et moyennes de classe par date, tendance pondérée sur ${days} jours"><title>Évolution des résultats sur la période sélectionnée</title>${grid}<path d="M${left} ${top}V${bottom}H${right}" class="chart-axis"/>${ticks.map((t) => `<text x="${x(t)}" y="325" text-anchor="middle">${e(label(new Date(t).toISOString().slice(0, 10)))}</text>`).join('')}${line('average', 'series-student')}${line('classAverage', 'series-class')}${line('trend', 'series-trend')}</svg></div><p class="chart-explanation">Chaque point représente la moyenne générale calculée avec toutes les notes obtenues depuis le début de la période sélectionnée : moyenne par matière, puis pondération par les coefficients des matières. La courbe de classe applique le même calcul aux moyennes de classe des mêmes évaluations lorsqu’elles sont disponibles ; ce n’est pas la moyenne générale officielle de la classe. La tendance applique ce calcul aux seules notes des ${days} derniers jours, à partir de deux notes ; ce n’est pas une prévision.${points.some((p) => p.classAverage !== null) ? '' : ' Moyennes de classe indisponibles.'} Survolez les points pour les détails.</p></section>`;
 }

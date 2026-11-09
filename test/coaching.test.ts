@@ -48,7 +48,9 @@ test('contexte : hausse, baisse, stabilité, période et données insuffisantes 
   const prompt = coachingPrompt(c);
   assert.doesNotMatch(prompt, /private-id|Private Name|private-photo/);
   assert.equal(coachingContext(child(10, 14), 'T2', 30, now).count, 0);
-  assert.equal(coachingContext(child(10, 14), 'all', 14, now).direction, 'unknown');
+  // Aucune note avant la fenêtre : pas de moyenne de départ, évolution inconnue.
+  const recentOnly = { ...child(10, 14), notes: [note('2026-11-01', 14)] };
+  assert.equal(coachingContext(recentOnly, 'all', 14, now).direction, 'unknown');
 });
 
 test('cache : dédoublonnage et sérialisation des appels', async () => {

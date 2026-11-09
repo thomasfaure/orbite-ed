@@ -104,6 +104,34 @@
   overflow: auto;
 }
 
+// Moyennes par matière (subjects-panel.ts) : sous-matières en retrait, moyenne générale en pied.
+.subjects-panel {
+  h2 {
+    font-size: 20px;
+  }
+
+  td {
+    padding: 11px 12px;
+  }
+
+  .note-value {
+    font-size: 15px;
+  }
+
+  .subject-sub td {
+    color: #79768c;
+
+    &:first-child {
+      padding-left: 30px;
+    }
+  }
+
+  .subject-total td {
+    border-top: 2px solid #e9e9f3;
+    font-weight: 600;
+  }
+}
+
 table {
   border-collapse: collapse;
   width: 100%;

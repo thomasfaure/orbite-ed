@@ -1,10 +1,11 @@
 /**
  * Calculs partagés sur les notes, les dates et les classes.
  *
- * Rôle : toute la logique « métier » sans entrée-sortie. Moyennes pondérées sur 20,
- * tendance sur 30 jours, écart à la classe, regroupement par matière, courbe
- * d'évolution, notes de la semaine, filtre des classes du secondaire, validation
- * des photos et dates à l'heure de Paris.
+ * Rôle : toute la logique « métier » sans entrée-sortie. Moyennes par matière et
+ * moyenne générale pondérée par les coefficients des matières, évolution sur 30
+ * jours, écart à la classe, regroupement par matière, courbe d'évolution, notes de
+ * la semaine, filtre des classes du secondaire, validation des photos et dates à
+ * l'heure de Paris.
  *
  * Fonctionnement : fonctions pures, exécutées des deux côtés. Le serveur les importe
  * (`isSecondary`, `photoUrl`, `parisDate`) et le navigateur charge la version
@@ -14,6 +15,10 @@
  * - Une note n'entre dans un calcul que si `valid()` l'accepte : chiffrée, barème
  *   et coefficient strictement positifs, non exclue. Les notes sont ramenées sur
  *   20, puis pondérées par leur coefficient.
+ * - Moyenne générale (`generalAverage`), comme sur le bulletin : moyenne de chaque
+ *   sous-matière, puis de chaque matière, puis moyenne des matières pondérée par
+ *   leurs coefficients (`Subject`, fournis par ÉcoleDirecte). Sans coefficients
+ *   connus, chaque matière compte pour 1.
  * - Les jours sont des jours civils à Paris (`parisDate`) : ne pas utiliser
  *   `toISOString()` sur « maintenant », qui donnerait la date UTC et décalerait
  *   les devoirs ou la semaine autour de minuit.
@@ -23,7 +28,7 @@
  * Liens : `src/client/views.ts` et `charts.ts` (affichage), `src/client/coaching.ts` (résumés IA),
  * `src/server/ecoledirecte.ts` (filtrage et dates).
  */
-import type { Gradable } from './types.ts';
+import type { Gradable, Note, Period, Subject } from './types.ts';
 
 /** Note utilisable dans un calcul : valeur, barème et coefficient garantis numériques. */
 export type ValidGrade<T extends Gradable = Gradable> = T & {
@@ -37,12 +42,28 @@ type PairedGrade<T extends Gradable> = ValidGrade<T> & { classAverage: number };
 export interface Metrics {
   average: number | null;
   trend: number | null;
+  /** Notes de la fenêtre de `days` jours qui se termine aujourd'hui. */
   recentCount: number;
+  /** Notes antérieures à cette fenêtre (base de la moyenne de départ). */
   previousCount: number;
   gap: number | null;
   classAverage: number | null;
   pairedCount: number;
   count: number;
+}
+
+/** Ligne du tableau des matières : une matière, ses sous-matières dans `subjects`. */
+export interface SubjectAverage {
+  id: string;
+  label: string;
+  coefficient: number | null;
+  average: number | null;
+  /** Moyenne de classe calculée de la même façon, sur les seules évaluations qui en ont une. */
+  classAverage: number | null;
+  /** Moyenne officielle ÉcoleDirecte de la période, pour contrôle. */
+  official: number | null;
+  count: number;
+  subjects: SubjectAverage[];
 }
 
 export interface SubjectGroup<T> {
@@ -94,35 +115,187 @@ export function mean<T extends Gradable>(
   return weights ? sum / weights : null;
 }
 
+type Field<T extends Gradable> = (n: ValidGrade<T>) => number;
+interface SubjectScore {
+  id: string;
+  average: number | null;
+  count: number;
+  subjects: SubjectScore[];
+}
+
+/** Clé de la matière parente : `MATH:ALG` → `MATH:` ; une clé sans `:` est sa propre parente. */
+const parentKey = (id: string): string => {
+  const i = id.lastIndexOf(':');
+  return i < 0 ? id : id.slice(0, i + 1);
+};
+const coefficientOf = (s: Subject | undefined): number | null =>
+  s && finite(s.coefficient) && s.coefficient >= 0 ? s.coefficient : null;
+// Valeurs réservées aux évaluations qui ont une moyenne de classe : `mean` ignore les NaN.
+const pairedScore = (n: ValidGrade): number => (paired(n) ? score(n) : Number.NaN);
+const pairedClassScore = (n: ValidGrade): number => (paired(n) ? classScore(n) : Number.NaN);
+
 /**
- * Indicateurs d'une carte élève ou matière.
- * - `trend` : moyenne des `days` derniers jours moins celle des `days` jours
- *   précédents (fenêtres consécutives se terminant ce soir à minuit) ; `null` si
- *   l'une des deux fenêtres est vide.
+ * Moyenne de chaque matière parente. Ses sous-matières sont moyennées séparément,
+ * puis pondérées par leurs coefficients ; si une seule n'a pas de coefficient, ou
+ * si des notes sont rattachées à la matière elle-même, toutes les notes de la
+ * matière sont moyennées ensemble. Des sous-matières toutes à coefficient 0 ne
+ * comptent pas : la matière n'a alors pas de moyenne.
+ */
+function scoreSubjects<T extends Gradable>(notes: readonly T[], meta: Map<string, Subject>, field: Field<T>) {
+  const parents = new Map<string, Map<string, ValidGrade<T>[]>>();
+  for (const n of notes.filter(valid)) {
+    const id = n.subjectId ?? '';
+    let subs = parents.get(parentKey(id));
+    if (!subs) {
+      subs = new Map();
+      parents.set(parentKey(id), subs);
+    }
+    subs.set(id, [...(subs.get(id) ?? []), n]);
+  }
+  return [...parents].map(([id, subs]): SubjectScore => {
+    const all = [...subs.values()].flat();
+    const parts = [...subs].map(([subId, list]): SubjectScore & { weight: number | null } => ({
+      id: subId,
+      average: mean(list, field),
+      count: list.length,
+      subjects: [],
+      weight: subId === id ? null : coefficientOf(meta.get(subId)),
+    }));
+    let average = mean(all, field);
+    if (parts.every((p) => p.weight !== null)) {
+      const counted = parts.filter((p) => p.average !== null && (p.weight as number) > 0);
+      const total = counted.reduce((sum, p) => sum + (p.weight as number), 0);
+      average = total
+        ? counted.reduce((sum, p) => sum + (p.average as number) * (p.weight as number), 0) / total
+        : null;
+    }
+    return {
+      id,
+      average,
+      count: all.length,
+      subjects: parts.filter((p) => p.id !== id).map(({ weight: _, ...p }) => p),
+    };
+  });
+}
+
+/**
+ * Moyenne des matières pondérée par leurs coefficients. Un coefficient 0 exclut
+ * la matière ; un coefficient absent vaut 1. Si aucune matière n'a de coefficient
+ * positif (coefficients inconnus), toutes comptent pour 1.
+ */
+function weightedSubjects(scores: SubjectScore[], meta: Map<string, Subject>): number | null {
+  const rows = scores
+    .filter((s) => s.average !== null)
+    .map((s) => ({ average: s.average as number, coefficient: coefficientOf(meta.get(s.id)) }));
+  const known = rows.some((r) => (r.coefficient ?? 0) > 0);
+  let sum = 0;
+  let weights = 0;
+  for (const r of rows) {
+    const weight = known ? (r.coefficient ?? 1) : 1;
+    sum += r.average * weight;
+    weights += weight;
+  }
+  return weights ? sum / weights : null;
+}
+
+const metaOf = (subjects: readonly Subject[]) => new Map(subjects.map((s) => [s.id, s]));
+
+/**
+ * Moyenne générale comme sur le bulletin : moyenne de chaque matière (et de ses
+ * sous-matières), puis moyenne des matières pondérée par leurs coefficients.
+ * Des notes sans `subjectId` forment une seule matière (simple moyenne pondérée).
+ */
+export function generalAverage<T extends Gradable>(
+  notes: readonly T[],
+  subjects: readonly Subject[] = [],
+  field: Field<T> = score,
+): number | null {
+  const meta = metaOf(subjects);
+  return weightedSubjects(scoreSubjects(notes, meta, field), meta);
+}
+
+/**
+ * Matières servant à pondérer la période affichée. Pour « toutes les périodes »,
+ * celles de la période annuelle d'ÉcoleDirecte. À défaut, l'union des matières de
+ * toutes les périodes, sans moyennes officielles, qui ne correspondraient alors à
+ * aucune période précise.
+ */
+export function periodSubjects(periods: readonly Period[], period: string): Subject[] {
+  const chosen = periods.find((p) => (period === 'all' ? p.annual : p.id === period));
+  if (chosen?.subjects?.length) return chosen.subjects;
+  const union = new Map<string, Subject>();
+  for (const s of periods.flatMap((p) => p.subjects ?? []))
+    if (!union.has(s.id)) union.set(s.id, { ...s, average: null, classAverage: null });
+  return [...union.values()];
+}
+
+/** Lignes du tableau des matières d'un élève, sous-matières incluses, triées par libellé. */
+export function subjectAverages(
+  notes: readonly (Gradable & Pick<Note, 'subject' | 'classAverage' | 'parentSubject' | 'subSubject'>)[],
+  subjects: readonly Subject[],
+): SubjectAverage[] {
+  const meta = metaOf(subjects);
+  const classes = new Map(
+    scoreSubjects(notes, meta, pairedClassScore)
+      .flatMap((s) => [s, ...s.subjects])
+      .map((s) => [s.id, s.average]),
+  );
+  const label = (id: string, sub: boolean) => {
+    const note = notes.find((n) => (sub ? n.subjectId === id : parentKey(n.subjectId ?? '') === id));
+    return meta.get(id)?.label || (sub ? note?.subSubject : note?.parentSubject) || note?.subject || id;
+  };
+  const row = (s: SubjectScore, sub: boolean): SubjectAverage => ({
+    id: s.id,
+    label: label(s.id, sub),
+    coefficient: coefficientOf(meta.get(s.id)),
+    average: s.average,
+    classAverage: classes.get(s.id) ?? null,
+    official: meta.get(s.id)?.average ?? null,
+    count: s.count,
+    subjects: s.subjects.map((x) => row(x, true)).sort((a, b) => a.label.localeCompare(b.label, 'fr')),
+  });
+  return scoreSubjects(notes, meta, score)
+    .map((s) => row(s, false))
+    .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+}
+
+/**
+ * Indicateurs d'une carte élève ou matière, calculés avec `generalAverage`.
+ * - `trend` : évolution de la moyenne sur `days` jours, c'est-à-dire la moyenne
+ *   avec toutes les notes jusqu'à ce soir moins celle avec les notes antérieures
+ *   à la fenêtre ; `null` s'il n'y avait encore aucune note au début de la fenêtre.
  * - `gap` / `classAverage` : calculés uniquement sur les notes qui ont une moyenne
  *   de classe, pour comparer des ensembles identiques.
  */
-export function metrics(notes: readonly Gradable[], now = new Date(), days = 30): Metrics {
+export function metrics(
+  notes: readonly Gradable[],
+  now = new Date(),
+  days = 30,
+  subjects: readonly Subject[] = [],
+): Metrics {
   // Fin de journée dans le fuseau d'exécution (navigateur), pour inclure les notes du jour.
   const today = new Date(now);
   today.setHours(23, 59, 59, 999);
   const end = today.getTime();
   const cut = end - days * 86400000;
-  const begin = cut - days * 86400000;
   const eligible = notes.filter(valid);
   const recent = eligible.filter((n) => time(n) > cut && time(n) <= end);
-  const previous = eligible.filter((n) => time(n) > begin && time(n) <= cut);
-  const a = mean(recent);
-  const b = mean(previous);
-  const pairs = eligible.filter(paired);
+  const before = eligible.filter((n) => time(n) <= cut);
+  const a = generalAverage(
+    eligible.filter((n) => time(n) <= end),
+    subjects,
+  );
+  const b = generalAverage(before, subjects);
+  const student = generalAverage(eligible, subjects, pairedScore);
+  const classAverage = generalAverage(eligible, subjects, pairedClassScore);
   return {
-    average: mean(eligible),
+    average: generalAverage(eligible, subjects),
     trend: a !== null && b !== null ? a - b : null,
     recentCount: recent.length,
-    previousCount: previous.length,
-    gap: mean(pairs, (n) => score(n) - classScore(n)),
-    classAverage: mean(pairs, classScore),
-    pairedCount: pairs.length,
+    previousCount: before.length,
+    gap: student !== null && classAverage !== null ? student - classAverage : null,
+    classAverage,
+    pairedCount: eligible.filter(paired).length,
     count: eligible.length,
   };
 }
@@ -221,11 +394,15 @@ export function nextSchoolDay(now = new Date()): string {
 /**
  * Points de la courbe d'évolution, un par jour ayant au moins une note (aucun
  * ordre artificiel entre les évaluations d'un même jour). Pour chaque jour :
- * - `average` / `classAverage` : moyennes cumulées depuis le début jusqu'à ce jour ;
- * - `trend` : moyenne glissante sur les `days` jours qui se terminent ce jour-là, publiée seulement
- *   avec au moins deux notes dans la fenêtre pour éviter une courbe en dents de scie.
+ * - `average` / `classAverage` : moyennes générales cumulées depuis le début jusqu'à ce jour ;
+ * - `trend` : moyenne générale glissante sur les `days` jours qui se terminent ce jour-là, publiée
+ *   seulement avec au moins deux notes dans la fenêtre pour éviter une courbe en dents de scie.
  */
-export function gradeTimeline<T extends Gradable>(notes: readonly T[], days = 30): TimelinePoint<T>[] {
+export function gradeTimeline<T extends Gradable>(
+  notes: readonly T[],
+  days = 30,
+  subjects: readonly Subject[] = [],
+): TimelinePoint<T>[] {
   const dated = (n: T): n is DatedGrade<T> =>
     valid(n) && /^\d{4}-\d{2}-\d{2}/.test(n.date || '') && Number.isFinite(Date.parse(n.date as string));
   const eligible = notes.filter(dated).sort((a, b) => a.date.localeCompare(b.date));
@@ -239,9 +416,9 @@ export function gradeTimeline<T extends Gradable>(notes: readonly T[], days = 30
       date,
       time: Date.parse(date + 'T12:00:00Z'),
       notes: daily,
-      average: mean(accumulated),
-      classAverage: mean(accumulated.filter(paired), classScore),
-      trend: rolling.length >= 2 ? mean(rolling) : null,
+      average: generalAverage(accumulated, subjects),
+      classAverage: generalAverage(accumulated, subjects, pairedClassScore),
+      trend: rolling.length >= 2 ? generalAverage(rolling, subjects) : null,
       count: rolling.length,
     };
   });

@@ -24,9 +24,18 @@
  *   démonstration.
  *
  * Liens : `state.ts`, `format.ts`, `charts.ts`, `homework-panel.ts`,
- * `coaching-panel.ts`, `actions.ts` (appelant), `src/styles/` (classes utilisées).
+ * `coaching-panel.ts`, `subjects-panel.ts`, `actions.ts` (appelant), `src/styles/` (classes utilisées).
  */
-import { gradeBand, isSecondary, metrics, subjectGroups, toTwenty, valid, weeklyNotes } from '../shared/metrics.ts';
+import {
+  gradeBand,
+  isSecondary,
+  metrics,
+  periodSubjects,
+  subjectGroups,
+  toTwenty,
+  valid,
+  weeklyNotes,
+} from '../shared/metrics.ts';
 import type { Child, Note } from '../shared/types.ts';
 import { detailedChart, spark } from './charts.ts';
 import { coachingPanel, loadCoaching } from './coaching-panel.ts';
@@ -34,6 +43,7 @@ import { $, appRoot } from './dom.ts';
 import { arrow, avatar, bandTitles, date, delta, e, fmt, icon, tone } from './format.ts';
 import { homeworkPanel } from './homework-panel.ts';
 import { currentNotes, state } from './state.ts';
+import { subjectsPanel } from './subjects-panel.ts';
 
 export type RowNote = Note & { child: Child };
 
@@ -47,11 +57,12 @@ function weeklyNotesPanel(child: Child): string {
 export function card(child: Child, i: number): string {
   const { selected, period, days } = state;
   const notes = currentNotes(child);
-  const m = metrics(notes, new Date(), days);
+  const subjects = periodSubjects(child.periods, period);
+  const m = metrics(notes, new Date(), days, subjects);
   const p = child.periods.find((p) => p.id === period);
   const average = p?.average ?? m.average;
   const official = p?.average !== null && p?.average !== undefined;
-  return `<article class="student-summary ${selected === child.id ? 'is-selected' : ''}"><button class="child-card ${selected === child.id ? 'selected' : ''} accent-${i % 6}" data-child="${e(child.id)}"><div class="card-heading">${avatar(child)}<span class="child-name">${e(child.name)}<small>${e(child.className || 'Classe non renseignée')}</small></span><span class="card-arrow">↗</span></div><div class="card-score">${fmt(average)}<span>/20</span></div><span class="score-label">${official ? 'Moyenne officielle' : 'Moyenne indicative des notes'}</span>${selected === child.id ? '' : spark(notes)}<div class="card-bottom"><span class="${tone(m.trend)}">${arrow(m.trend)} ${delta(m.trend)} <small>pt</small></span><span>${m.count} notes</span></div><div class="class-gap">${child.error ? `<span class="down">${e(child.error)}</span>` : m.gap === null ? `<span class="muted">${m.count ? 'Moyenne de classe indisponible' : 'Pas encore de notes chiffrées'}</span>` : `<span class="${tone(m.gap)}">${delta(m.gap)} pt</span> par rapport à la classe`}</div>${weeklyNotesPanel(child)}</button>${coachingPanel(child)}${selected === child.id ? detailedChart(child) : ''}${homeworkPanel(child)}</article>`;
+  return `<article class="student-summary ${selected === child.id ? 'is-selected' : ''}"><button class="child-card ${selected === child.id ? 'selected' : ''} accent-${i % 6}" data-child="${e(child.id)}"><div class="card-heading">${avatar(child)}<span class="child-name">${e(child.name)}<small>${e(child.className || 'Classe non renseignée')}</small></span><span class="card-arrow">↗</span></div><div class="card-score">${fmt(average)}<span>/20</span></div><span class="score-label">${official ? 'Moyenne officielle' : 'Moyenne générale calculée'}</span>${selected === child.id ? '' : spark(notes, subjects)}<div class="card-bottom"><span class="${tone(m.trend)}" title="Évolution de la moyenne générale sur ${days} jours">${arrow(m.trend)} ${delta(m.trend)} <small>pt</small></span><span>${m.count} notes</span></div><div class="class-gap">${child.error ? `<span class="down">${e(child.error)}</span>` : m.gap === null ? `<span class="muted">${m.count ? 'Moyenne de classe indisponible' : 'Pas encore de notes chiffrées'}</span>` : `<span class="${tone(m.gap)}">${delta(m.gap)} pt</span> par rapport à la classe`}</div>${weeklyNotesPanel(child)}</button>${coachingPanel(child)}${selected === child.id ? detailedChart(child, subjects) + subjectsPanel(child, subjects) : ''}${homeworkPanel(child)}</article>`;
 }
 
 /**
@@ -101,7 +112,7 @@ export function render(): void {
    .join(
      '',
    )}</select></div></div><div class="table-scroll"><table><thead><tr><th>Enfant / Évaluation</th><th>Matière</th><th>Date</th><th>Note /20</th><th>Classe /20</th><th>Écart /20</th><th>Coef.</th></tr></thead><tbody id="rows"></tbody></table></div><div class="grade-legend"><span class="grade-good">● Bonnes ≥ 14/20</span><span class="grade-average">● Moyennes ≥ 10 et &lt; 14/20</span><span class="grade-poor">● Notes &lt; 10/20</span><span>Toutes les notes et moyennes de classe sont ramenées sur 20.</span></div><div class="table-footer"><span id="resultCount"></span><span>Les notes ABS, dispensées ou non significatives restent visibles, hors calcul.</span></div></section>
- <details class="method" id="method"><summary>Comment lire ces indicateurs ?</summary><p>Les moyennes indicatives sont calculées à partir des notes chiffrées ramenées sur 20 et pondérées par leur coefficient. Elles ne remplacent pas le bulletin : la pondération par matière et les règles de l’établissement peuvent différer. Une moyenne officielle est affichée lorsqu’une période précise est sélectionnée et qu’ÉcoleDirecte la fournit.</p><p>La tendance compare les ${days} derniers jours aux ${days} jours précédents, à l’intérieur de la période sélectionnée. Le nombre et la difficulté des évaluations peuvent varier. Sans note dans les deux fenêtres, le résultat reste indisponible. L’écart à la classe compare uniquement les évaluations disposant des deux notes, sur le même barème. Un tiret signifie « donnée indisponible », jamais zéro.</p><p>Les points d’attention correspondent à une baisse d’au moins un point dans une matière. Ils servent à ouvrir une discussion, sans classer les enfants entre eux. La moyenne de classe n’est pas affichée lorsqu’elle n’est pas disponible ou que son affichage est désactivé dans les paramètres remontés.</p></details>`
+ <details class="method" id="method"><summary>Comment lire ces indicateurs ?</summary><p>La moyenne générale est calculée comme sur le bulletin : les notes chiffrées sont ramenées sur 20 et pondérées par leur coefficient pour obtenir la moyenne de chaque sous-matière et de chaque matière, puis les matières sont pondérées par les coefficients de l’établissement fournis par ÉcoleDirecte. Une matière de coefficient 0 ne compte pas ; sans coefficients connus, chaque matière compte pour 1. Une moyenne officielle est affichée lorsqu’une période précise est sélectionnée et qu’ÉcoleDirecte la fournit.</p><p>L’évolution est la variation de la moyenne générale sur les ${days} derniers jours : la moyenne actuelle moins celle calculée avec les seules notes antérieures, à l’intérieur de la période sélectionnée. Sans note avant ces ${days} jours, elle reste indisponible. L’écart à la classe compare uniquement les évaluations disposant des deux notes, sur le même barème. Un tiret signifie « donnée indisponible », jamais zéro.</p><p>Les points d’attention correspondent à une baisse d’au moins un point de la moyenne d’une matière sur les ${days} derniers jours. Ils servent à ouvrir une discussion, sans classer les enfants entre eux. La moyenne de classe n’est pas affichée lorsqu’elle n’est pas disponible ou que son affichage est désactivé dans les paramètres remontés.</p></details>`
  }
  <footer><span>Orbite</span><span>${data ? `Dernière ${data.demo ? 'simulation' : 'synchronisation'} : ${new Date(data.updatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : 'Client indépendant, non affilié à ÉcoleDirecte'}</span></footer></main>`;
   if (data) renderRows(all);
