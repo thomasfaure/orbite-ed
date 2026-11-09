@@ -20,7 +20,7 @@
  * - `isSecondary` s'appuie sur des libellés de classe libres ; ses cas sont
  *   couverts par `test/metrics.test.ts`.
  *
- * Liens : `src/client/app.ts` (affichage), `src/client/coaching.ts` (résumés IA),
+ * Liens : `src/client/views.ts` et `charts.ts` (affichage), `src/client/coaching.ts` (résumés IA),
  * `src/server/ecoledirecte.ts` (filtrage et dates).
  */
 import type { Gradable } from './types.ts';

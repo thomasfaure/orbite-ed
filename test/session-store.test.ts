@@ -51,7 +51,7 @@ test('coffre altéré ou clé perdue : échec sans écrasement', (t) => {
   const store = new SessionStore(dir);
   store.save([]);
   const bytes = readFileSync(store.file);
-  bytes[bytes.length - 1]! ^= 1;
+  bytes[bytes.length - 1] = (bytes.at(-1) ?? 0) ^ 1;
   writeFileSync(store.file, bytes);
   assert.throws(() => store.load(), /déchiffré/);
   assert.deepEqual(readFileSync(store.file), bytes);

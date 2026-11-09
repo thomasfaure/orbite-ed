@@ -1,7 +1,14 @@
 #!/bin/zsh
 cd "${0:A:h}"
-if ! command -v node >/dev/null 2>&1; then
-  print 'Node.js 22 ou supérieur est requis. Installez-le depuis https://nodejs.org.'
+# Sélectionne la version de .nvmrc si nvm est installé (Homebrew ou installation standard).
+for nvm_script in "${NVM_DIR:-$HOME/.nvm}/nvm.sh" /opt/homebrew/opt/nvm/nvm.sh; do
+  if [[ -s "$nvm_script" ]]; then
+    source "$nvm_script" && nvm use >/dev/null
+    break
+  fi
+done
+if ! command -v node >/dev/null 2>&1 || ! node -e 'process.exit(+process.versions.node.split(".")[0] < 24 ? 1 : 0)'; then
+  print 'Node.js 24 ou supérieur est requis. Installez-le depuis https://nodejs.org.'
   read '?Appuyez sur Entrée pour fermer.'
   exit 1
 fi

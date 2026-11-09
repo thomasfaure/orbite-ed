@@ -50,31 +50,33 @@ export interface EdBody<T = unknown> {
   data?: T;
 }
 
+// Les champs `?: T | undefined` peuvent être recopiés tels quels depuis une autre
+// structure lors de l'export de session (`exactOptionalPropertyTypes`).
 interface RawClasse {
-  code?: string;
-  libelle?: string;
+  code?: string | undefined;
+  libelle?: string | undefined;
 }
 
 interface RawProfile {
-  classe?: RawClasse;
+  classe?: RawClasse | undefined;
   photo?: string | null;
   eleves?: RawStudent[];
 }
 
 export interface RawStudent {
   id: Id;
-  prenom?: string;
-  nom?: string;
-  nomEtablissement?: string;
+  prenom?: string | undefined;
+  nom?: string | undefined;
+  nomEtablissement?: string | undefined;
   photo?: string | null;
-  classe?: RawClasse;
+  classe?: RawClasse | undefined;
   profile?: RawProfile;
 }
 
 export interface RawAccount extends RawStudent {
-  idLogin?: Id;
-  main?: boolean;
-  typeCompte?: string;
+  idLogin?: Id | undefined;
+  main?: boolean | undefined;
+  typeCompte?: string | undefined;
 }
 
 interface RawDiscipline {
@@ -191,21 +193,21 @@ interface LoginPayload {
 
 interface SessionIdentity {
   id: Id;
-  prenom?: string;
-  nom?: string;
-  nomEtablissement?: string;
+  prenom?: string | undefined;
+  nom?: string | undefined;
+  nomEtablissement?: string | undefined;
   photo: string | null;
-  classe?: RawClasse;
+  classe?: RawClasse | undefined;
 }
 
 /** Forme persistée dans le coffre ; `version` permet de refuser un format inconnu. */
 export interface SavedAuth {
   version: 1;
   token: string;
-  gtk?: string;
-  twoFa?: string;
+  gtk?: string | undefined;
+  twoFa?: string | undefined;
   cookies: [string, string][];
-  activeId?: Id;
+  activeId?: Id | undefined;
   accounts: RawAccount[];
 }
 
@@ -229,6 +231,24 @@ export class EdError extends Error {
     this.code = code;
   }
 }
+
+/**
+ * Éléments objets d'une liste ÉcoleDirecte. Une valeur qui n'est pas un tableau
+ * donne une liste vide et les éléments `null` ou primitifs sont ignorés : une
+ * réponse dégradée réduit l'affichage au lieu de faire planter le traitement.
+ * Les champs des éléments restent à vérifier là où ils sont utilisés.
+ */
+function records<T extends object>(value: unknown): T[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is T => typeof item === 'object' && item !== null && !Array.isArray(item))
+    : [];
+}
+
+const isId = (value: unknown): value is Id => typeof value === 'number' || (typeof value === 'string' && value !== '');
+
+// Message montré à la famille : celui d'une EdError, jamais le détail d'une erreur interne.
+const userMessage = (error: unknown): string =>
+  error instanceof EdError ? error.message : 'Réponse ÉcoleDirecte inattendue pour cet élève.';
 
 const classLabel = (s: RawStudent): string | undefined =>
   s.classe?.libelle || s.profile?.classe?.libelle || s.classe?.code || s.profile?.classe?.code;
@@ -285,7 +305,7 @@ export class EcoleDirecte {
         {
           method: bootstrap ? 'GET' : 'POST',
           headers,
-          body: bootstrap ? undefined : new URLSearchParams({ data: JSON.stringify(data ?? {}) }),
+          body: bootstrap ? null : new URLSearchParams({ data: JSON.stringify(data ?? {}) }),
           signal: AbortSignal.timeout(20000),
           // Une redirection signalerait une page de maintenance ou de connexion, pas du JSON.
           redirect: 'error',
@@ -370,7 +390,7 @@ export class EcoleDirecte {
   async accept(body: EdBody<{ accounts?: RawAccount[]; id?: Id; totp?: boolean }>): Promise<AuthResult> {
     if (Number(body.code) === 200) {
       if (!this.token || !Array.isArray(body.data?.accounts)) throw new EdError('Réponse de connexion incomplète.');
-      this.accounts = body.data.accounts;
+      this.accounts = records<RawAccount>(body.data.accounts).filter((a) => isId(a.id));
       this.activeId = body.data.id ?? this.accounts.find((a) => a.main)?.id ?? this.accounts[0]?.id;
       this.pending = undefined;
       this.factors = [];
@@ -389,13 +409,21 @@ export class EcoleDirecte {
       'connexion/doubleauth.awp?verbe=get',
       {},
     );
-    if (Number(question.code) !== 200 || !question.data?.question || !question.data.propositions?.length)
+    const { question: text, propositions } = question.data ?? {};
+    if (
+      Number(question.code) !== 200 ||
+      typeof text !== 'string' ||
+      !text ||
+      !Array.isArray(propositions) ||
+      !propositions.length ||
+      !propositions.every((p) => typeof p === 'string')
+    )
       throw new EdError('Question de sécurité indisponible.');
-    this.choices = question.data.propositions;
+    this.choices = propositions;
     this.state = 'question';
     return {
       state: 'question',
-      question: Buffer.from(question.data.question, 'base64').toString('utf8'),
+      question: Buffer.from(text, 'base64').toString('utf8'),
       choices: this.choices.map((v) => Buffer.from(v, 'base64').toString('utf8')),
     };
   }
@@ -446,8 +474,8 @@ export class EcoleDirecte {
     const children: Child[] = [];
     for (const account of this.accounts) {
       // Compte élève (`E`) : il est lui-même l'élève. Compte famille : ses `eleves`.
-      const students = (account.typeCompte === 'E' ? [account] : account.profile?.eleves || []).filter((s) =>
-        isSecondary(classLabel(s)),
+      const students = (account.typeCompte === 'E' ? [account] : records<RawStudent>(account.profile?.eleves)).filter(
+        (s) => isSecondary(classLabel(s)),
       );
       if (!students.length) continue;
       try {
@@ -485,7 +513,7 @@ export class EcoleDirecte {
             Object.assign(child, normalizeNotes(response.data));
           } catch (e) {
             if ((e as EdError).status === 401) throw e;
-            Object.assign(child, { error: (e as Error).message, notes: [], periods: [] });
+            Object.assign(child, { error: userMessage(e), notes: [], periods: [] });
           }
           children.push(child);
         }
@@ -498,7 +526,7 @@ export class EcoleDirecte {
               id: `${account.id}:${s.id}`,
               name: s.prenom || 'Élève',
               className: s.classe?.libelle || '',
-              error: (e as Error).message,
+              error: userMessage(e),
               notes: [],
               periods: [],
             });
@@ -510,7 +538,7 @@ export class EcoleDirecte {
   async homeworkForChild(childId: string, options: { cursor?: number | null } = {}): Promise<HomeworkPage> {
     if (this.state !== 'authenticated') throw new EdError('Reconnectez-vous.', 401);
     for (const account of this.accounts) {
-      const students = account.typeCompte === 'E' ? [account] : account.profile?.eleves || [];
+      const students = account.typeCompte === 'E' ? [account] : records<RawStudent>(account.profile?.eleves);
       const student = students.find((s) => `${account.id}:${s.id}` === childId && isSecondary(classLabel(s)));
       if (!student) continue;
       await this.switchContext(account, 'Contexte de cet établissement indisponible.');
@@ -585,7 +613,7 @@ export class EcoleDirecte {
           {},
         );
         if (Number(day.code) !== 200 || !Array.isArray(day.data?.matieres)) throw new EdError('Détail indisponible.');
-        current.details.set(dueDate, day.data.matieres);
+        current.details.set(dueDate, records<RawHomeworkSubject>(day.data.matieres));
       } catch (e) {
         if ((e as EdError).status === 401) throw e;
         partial = true;
@@ -611,9 +639,7 @@ export class EcoleDirecte {
         text: homeworkText(task?.contenu),
         status: done === false ? 'pending' : 'unknown',
         exam: !!(detail?.interrogation ?? h.interrogation),
-        documents: (Array.isArray(task?.documents) ? task.documents : []).map((d) =>
-          String(d.libelle || 'Pièce jointe'),
-        ),
+        documents: records<{ libelle?: string }>(task?.documents).map((d) => String(d.libelle || 'Pièce jointe')),
       });
     }
     const homeworkDates = [...dates].sort().map((date) => {
@@ -657,7 +683,7 @@ export class EcoleDirecte {
         profile: {
           classe: identityClasse(account.profile || {}),
           photo: photoUrl(account.profile?.photo),
-          eleves: (account.profile?.eleves || []).map(sessionIdentity),
+          eleves: records<RawStudent>(account.profile?.eleves).map(sessionIdentity),
         },
       })),
     };
@@ -723,8 +749,7 @@ export function number(value: unknown): number | null {
 function noteSubject(note: RawNote, periods: RawPeriod[]) {
   const code = String(note.codeMatiere || '');
   const sub = String(note.codeSousMatiere || '');
-  const disciplines = (p: RawPeriod) =>
-    Array.isArray(p.ensembleMatieres?.disciplines) ? p.ensembleMatieres.disciplines : [];
+  const disciplines = (p: RawPeriod) => records<RawDiscipline>(p.ensembleMatieres?.disciplines);
   const local = periods.filter((p) => (p.codePeriode || p.idPeriode) === note.codePeriode).flatMap(disciplines);
   const all = periods.flatMap(disciplines);
   const label = (d: RawDiscipline) => String(d.discipline || d.libelleMatiere || '').trim();
@@ -758,10 +783,11 @@ function noteSubject(note: RawNote, periods: RawPeriod[]) {
  * de l'établissement sont respectés : une moyenne ou une note masquée sur
  * ÉcoleDirecte devient `null` (ou disparaît) dans Orbite.
  */
-export function normalizeNotes(data: RawNotesData = {}): { periods: Period[]; notes: Note[] } {
-  const settings = data.parametrage || {};
+export function normalizeNotes(data: RawNotesData | null = {}): { periods: Period[]; notes: Note[] } {
+  const settings = data?.parametrage || {};
+  const periodes = records<RawPeriod>(data?.periodes);
   return {
-    periods: (data.periodes || []).map((p) => ({
+    periods: periodes.map((p) => ({
       id: p.codePeriode || p.idPeriode,
       label: p.periode,
       annual: p.annuel,
@@ -776,9 +802,9 @@ export function normalizeNotes(data: RawNotesData = {}): { periods: Period[]; no
     notes:
       settings.affichageNote === false
         ? []
-        : (data.notes || []).map((n) => ({
+        : records<RawNote>(data?.notes).map((n) => ({
             id: n.id,
-            ...noteSubject(n, data.periodes || []),
+            ...noteSubject(n, periodes),
             subjectId: `${n.codeMatiere || n.libelleMatiere}:${n.codeSousMatiere || ''}`,
             title: n.devoir || n.typeDevoir || 'Évaluation',
             date: n.date,
@@ -847,7 +873,10 @@ export function homeworkText(value: unknown): string {
     .trim();
 }
 
-function identityClasse(s: { classe?: RawClasse; profile?: RawProfile }): RawClasse | undefined {
+function identityClasse(s: {
+  classe?: RawClasse | undefined;
+  profile?: RawProfile | undefined;
+}): RawClasse | undefined {
   const classe = s.classe || s.profile?.classe;
   return classe ? { code: classe.code, libelle: classe.libelle } : undefined;
 }

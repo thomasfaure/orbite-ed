@@ -1,6 +1,6 @@
 # Orbite · Tableau de bord familial ÉcoleDirecte
 
-Client web local écrit en TypeScript, exécuté par Node.js 22 ou supérieur. Aucune dépendance d'exécution, aucun compte externe. Les seules dépendances npm (TypeScript, types Node, Prettier) servent au développement et à la compilation.
+Client web local écrit en TypeScript, exécuté par Node.js 24 ou supérieur (version épinglée dans `.nvmrc` : `nvm use`). Aucune dépendance d'exécution, aucun compte externe. Les seules dépendances npm (TypeScript, types Node, Sass, Prettier, Biome) servent au développement et à la compilation.
 
 ## Lancer
 
@@ -63,9 +63,16 @@ Les utilisateurs ayant accès à votre session macOS et à votre navigateur ouve
 ## Vérification et limites
 
 ```sh
-npm test        # compile puis exécute les tests TypeScript
-npm run check   # contrôle de types, formatage et tests
+npm test               # compile puis exécute les tests TypeScript
+npm run lint           # analyse statique (Biome)
+npm run check          # types, lint, formatage et tests
+npm run test:coverage  # tests avec rapport de couverture de src/
 ```
+
+`npm install` active le hook Git `.githooks/pre-commit`, qui lance `npm run check`
+avant chaque commit (contournement ponctuel : `git commit --no-verify`). La même
+vérification tourne dans GitHub Actions (`.github/workflows/ci.yml`) à chaque push
+sur `main` et à chaque pull request, avec la version de Node de `.nvmrc`.
 
 21 tests automatisés réussis : protocoles de connexion simulés, QCM, TOTP, rotation des jetons, expiration, comptes multiples, données partielles, calculs et protections HTTP. Les tests HTTP invoquent le gestionnaire directement sans ouvrir de socket.
 
@@ -86,13 +93,19 @@ Les paramètres de visibilité remontés par l’API sont pris en compte pour le
 
 ## Organisation
 
-- `src/server/server.ts` : serveur HTTP local et sessions.
-- `src/server/ecoledirecte.ts` : transport, authentification, comptes et normalisation des notes.
+- `src/server/server.ts` : serveur HTTP local, sessions et table des routes `/api/*` (une route inconnue répond 404).
+- `src/server/ecoledirecte.ts` : transport, authentification, comptes et normalisation des notes. Les réponses ÉcoleDirecte sont filtrées par des gardes (listes et objets attendus) : une réponse mal formée produit un message d'erreur par élève, jamais un plantage.
 - `src/server/openai.ts`, `src/server/session-store.ts` : IA côté serveur et coffre chiffré.
 - `src/server/restart-nas.ts` : redémarrage ciblé sur le NAS.
 - `src/shared/types.ts` : types du domaine partagés (notes, périodes, élèves, devoirs).
 - `src/shared/metrics.ts` : calculs isolés et testables, communs au serveur et au navigateur.
-- `src/client/app.ts` : interface et interactions.
+- `src/client/app.ts` : point d'entrée navigateur (écouteurs et démarrage), qui assemble :
+  - `state.ts` : état partagé de l'interface ;
+  - `views.ts` : rendu du tableau de bord et du tableau des notes ;
+  - `actions.ts` : appels au serveur, chargements et connexion ;
+  - `charts.ts`, `homework-panel.ts`, `coaching-panel.ts` : courbes, devoirs et conseils IA des cartes ;
+  - `format.ts`, `dom.ts` : mise en forme des valeurs et accès au DOM ;
+  - `ai.ts`, `coaching.ts` : appel de l'IA et préparation des conseils.
 - `src/client/demo.ts` : données fictives déterministes.
 - `src/styles/` : thème clair pastel et responsive en SCSS, compilé vers `dist/style.css`.
 - `public/` : `index.html` et favicon.
@@ -154,9 +167,13 @@ Le HTML des consignes est converti en texte et échappé à l'affichage.
 Aucune écriture ni modification de statut sur ÉcoleDirecte.
 Les appels restent séquentiels pour respecter la rotation des jetons.
 
-27 tests passent avec Node 22, dont filtrage, dates, détails incomplets,
+Les tests couvrent notamment filtrage, dates, détails incomplets,
 expiration et erreurs partielles. Les devoirs réels restent à valider après
 déploiement et reconnexion sur le NAS.
+
+Le runtime du NAS (`/mnt/HD/HD_a2/orbite/runtime/node`) doit être un Node 24 ou
+supérieur pour Linux x64 (processeur Intel du PR2100) : vérifier avec
+`/mnt/HD/HD_a2/orbite/runtime/node -v` avant le déploiement.
 
 Pour déployer depuis le Mac, exécuter `npm run build`, copier le dossier ed-family
 (au minimum `dist/`, `public/`, `start-nas.sh` et `package.json` ; `node_modules/`
@@ -380,7 +397,8 @@ Après transfert des scripts mis à jour et configuration du `.env`, lancer
 ## TypeScript
 
 Tout le code (serveur, navigateur, tests) est écrit en TypeScript strict
-(`strict`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`,
+(`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
+`noImplicitReturns`, `noImplicitOverride`, `verbatimModuleSyntax`,
 `erasableSyntaxOnly`). Les imports relatifs utilisent l'extension `.ts`, réécrite
 en `.js` à la compilation. Trois configurations :
 
@@ -393,8 +411,8 @@ NAS n'a besoin ni de TypeScript ni de `node_modules`. Les tests s'exécutent
 directement en TypeScript grâce au retrait des types natif de Node.
 
 Scripts : `npm run build`, `npm start`, `npm run dev` (recompilation et
-redémarrage automatiques), `npm run typecheck`, `npm test`, `npm run format`,
-`npm run check`.
+redémarrage automatiques), `npm run typecheck`, `npm run lint`, `npm test`,
+`npm run test:coverage`, `npm run format`, `npm run check`.
 
 Les fichiers servis au navigateur deviennent `/client/*.js` et
 `/shared/metrics.js`, toujours sur liste blanche. Le coffre de sessions et `.env`

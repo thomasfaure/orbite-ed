@@ -22,7 +22,7 @@ import assert from 'node:assert/strict';
 import { EcoleDirecte, homeworkText } from '../src/server/ecoledirecte.ts';
 import type { HomeworkPage } from '../src/shared/types.ts';
 
-type Handler = (path: string, payload?: any) => Promise<unknown>;
+type Handler = (path: string, payload?: Record<string, unknown>) => Promise<unknown>;
 
 const b64 = (s: string) => Buffer.from(s).toString('base64');
 const now = new Date('2026-11-07T12:00:00Z');
@@ -154,7 +154,7 @@ test('dashboard ne charge aucun devoir ; chargement différé vérifie le compte
 test('devoirs différés changent le contexte établissement avant de lire', async () => {
   const c = setup(async (path, payload) => {
     assert.match(path, /renewtoken/);
-    assert.equal(payload.idUser, 202);
+    assert.equal(payload?.idUser, 202);
     return { code: 200 };
   });
   c.activeId = 1;

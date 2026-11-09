@@ -22,7 +22,7 @@
  * - Les libellés de matière viennent d'ÉcoleDirecte : la consigne précise qu'ils
  *   sont des données, pour limiter les injections d'instructions.
  *
- * Liens : `src/client/app.ts` (`loadCoaching`), `src/client/ai.ts`,
+ * Liens : `src/client/coaching-panel.ts` (`loadCoaching`), `src/client/ai.ts`,
  * `src/shared/metrics.ts`, `test/coaching.test.ts`.
  */
 import { metrics, subjectGroups, type Metrics } from '../shared/metrics.ts';
@@ -93,7 +93,7 @@ export function createCoachingCache(request: (prompt: string) => Promise<Partial
     },
     get(key, prompt, isCurrent = () => true) {
       const cached = cache.get(key);
-      if (cached) return cached;
+      if (cached !== undefined) return cached;
       // Chaînée derrière la demande précédente, même si celle-ci a échoué.
       const task: Promise<string> = queue
         .catch(() => {})

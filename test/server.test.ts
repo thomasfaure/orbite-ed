@@ -37,7 +37,7 @@ import type { AIClient } from '../src/server/openai.ts';
 interface Reply {
   status: number;
   headers: Record<string, string>;
-  body: any;
+  body: Record<string, unknown>;
 }
 interface RequestOptions {
   method?: string;
@@ -89,7 +89,8 @@ function harness(options: AppOptions = {}) {
           } catch {
             value = String(body);
           }
-          resolve({ status: this.status, headers: h, body: value });
+          // Les tests ne lisent les propriétés que des réponses JSON ; un fichier statique reste une chaîne.
+          resolve({ status: this.status, headers: h, body: value as Reply['body'] });
         },
       };
       server.emit('request', req, res);
@@ -227,7 +228,9 @@ test('redémarrage : même cookie restauré, rotation persistée, déconnexion d
   const expiry = new SessionStore(directory).load()[0]?.expires;
   await first.request('/api/dashboard', { method: 'POST', headers, data: {} });
   first.server.emit('close');
-  assert.equal((new SessionStore(directory).load()[0]?.auth as { token: string }).token, 'rotated-token');
+  const saved = new SessionStore(directory).load()[0];
+  assert.ok(saved);
+  assert.equal((saved.auth as { token: string }).token, 'rotated-token');
   const second = harness({ clientFactory: factory, sessionStore: new SessionStore(directory) });
   assert.equal((await second.request('/api/session', { headers })).body.state, 'authenticated');
   assert.equal(new SessionStore(directory).load()[0]?.expires, expiry);

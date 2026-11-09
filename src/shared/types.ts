@@ -3,7 +3,8 @@
  *
  * Rôle : contrat unique des données échangées sur l'API `/api/*`. Le serveur
  * (`ecoledirecte.ts`) produit ces structures à partir des réponses brutes
- * d'ÉcoleDirecte ; le client (`app.ts`, `demo.ts`, `coaching.ts`) les consomme.
+ * d'ÉcoleDirecte ; le client (`actions.ts`, `views.ts`, `demo.ts`, `coaching.ts`)
+ * les consomme.
  * Les formats bruts d'ÉcoleDirecte restent confinés côté serveur.
  *
  * Fonctionnement : déclarations de types seulement. Avec `verbatimModuleSyntax`,
@@ -30,12 +31,12 @@ export interface Gradable {
   coefficient: number | null;
   /** Note affichée mais exclue des moyennes (non significative, en lettres). */
   excluded?: boolean;
-  date?: string;
+  date?: string | undefined;
   classAverage?: number | null;
 }
 
 export interface Note extends Gradable {
-  id?: number | string;
+  id?: number | string | undefined;
   parentSubject?: string;
   subSubject?: string;
   /** Libellé affiché : « Matière » ou « Matière · Sous-matière ». */
@@ -44,19 +45,20 @@ export interface Note extends Gradable {
   subjectId: string;
   title: string;
   /** Code de période ÉcoleDirecte (correspond à `Period.id`). */
-  period?: string;
+  period?: string | undefined;
   /** Valeur telle qu'affichée par ÉcoleDirecte, conservée pour les notes non chiffrées. */
   raw: string;
   classAverage: number | null;
   excluded: boolean;
 }
 
+/** Les champs optionnels reprennent ceux d'ÉcoleDirecte, qui peuvent manquer. */
 export interface Period {
-  id?: string;
-  label?: string;
-  annual?: boolean;
-  start?: string;
-  end?: string;
+  id?: string | undefined;
+  label?: string | undefined;
+  annual?: boolean | undefined;
+  start?: string | undefined;
+  end?: string | undefined;
   average: number | null;
   classAverage: number | null;
 }

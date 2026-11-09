@@ -49,11 +49,12 @@ function transport(steps: Step[]) {
   const calls: Call[] = [];
   const fetch = async (url: string, options: Call['options']) => {
     const data = (options.body as URLSearchParams | undefined)?.get('data');
-    calls.push({ url, options, payload: data ? JSON.parse(data) : undefined });
+    const call: Call = { url, options, payload: data ? JSON.parse(data) : undefined };
+    calls.push(call);
     if (url.includes('/cahierdetexte.awp')) return response({ code: 200, data: {} });
     const step = steps.shift();
     assert.ok(step, 'appel réseau imprévu');
-    return step(calls.at(-1)!);
+    return step(call);
   };
   return { calls, fetch: fetch as unknown as typeof globalThis.fetch };
 }

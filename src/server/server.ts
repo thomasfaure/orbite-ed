@@ -25,7 +25,7 @@
  *   l'identique depuis `src/` (tests) et `dist/` (exécution).
  *
  * Liens : `ecoledirecte.ts` (client API), `session-store.ts` (persistance),
- * `openai.ts` (IA), `src/client/app.ts` (consommateur de l'API).
+ * `openai.ts` (IA), `src/client/actions.ts` (consommateur de l'API).
  */
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url';
 import { OpenAIClient, type AIClient } from './openai.ts';
 import { SessionStore } from './session-store.ts';
 import { EcoleDirecte, EdError, type SavedAuth, type VerifyInput } from './ecoledirecte.ts';
-import type { AuthResult, AuthState, Dashboard, HomeworkPage } from '../shared/types.ts';
+import type { AIResult, AuthResult, AuthState, Dashboard, HomeworkPage } from '../shared/types.ts';
 
 // Identique depuis src/server (tests) et dist/server (exécution compilée).
 const projectRoot = new URL('../../', import.meta.url);
@@ -47,9 +47,21 @@ const assets = new Map<string, [file: URL, type: string]>([
   ['/', [new URL('public/index.html', projectRoot), 'text/html']],
   ['/style.css', [new URL('dist/style.css', projectRoot), 'text/css']],
   ['/favicon.svg', [new URL('public/favicon.svg', projectRoot), 'image/svg+xml']],
-  ...['client/app.js', 'client/ai.js', 'client/coaching.js', 'client/demo.js', 'shared/metrics.js'].map(
-    (file): [string, [URL, string]] => ['/' + file, [new URL('dist/' + file, projectRoot), 'text/javascript']],
-  ),
+  ...[
+    'client/app.js',
+    'client/actions.js',
+    'client/ai.js',
+    'client/charts.js',
+    'client/coaching.js',
+    'client/coaching-panel.js',
+    'client/demo.js',
+    'client/dom.js',
+    'client/format.js',
+    'client/homework-panel.js',
+    'client/state.js',
+    'client/views.js',
+    'shared/metrics.js',
+  ].map((file): [string, [URL, string]] => ['/' + file, [new URL('dist/' + file, projectRoot), 'text/javascript']]),
 ]);
 
 /** Contrat attendu du client ÉcoleDirecte ; les tests y substituent une doublure. */
@@ -68,7 +80,7 @@ interface Session {
   client: DashboardClient;
   /** Échéance absolue (ms) : 10 min pendant la vérification, puis 8 h après authentification. */
   expires: number;
-  /** Verrou des appels ÉcoleDirecte ; seul le gestionnaire qui l'a pris (`ownsLock`) le relâche. */
+  /** Verrou des appels ÉcoleDirecte, posé et relâché uniquement par `locked()`. */
   busy: boolean;
   aiBusy?: boolean;
   aiAttempts?: number[];
@@ -76,6 +88,16 @@ interface Session {
   cache?: Dashboard;
   cacheTime?: number;
   homeworkCache?: Map<string, { time: number; value: HomeworkPage }>;
+}
+
+/** Données d'une requête POST, transmises à la route correspondante. */
+interface RouteContext {
+  /** Identifiant lu dans le cookie (éventuellement inconnu ou vide). */
+  id: string;
+  /** Session non expirée associée au cookie, si elle existe. */
+  session: Session | undefined;
+  data: RequestData;
+  res: http.ServerResponse;
 }
 
 interface RequestData {
@@ -154,6 +176,166 @@ export function createApp({
   }, 60000);
   cleanup.unref();
 
+  // Verrou des appels ÉcoleDirecte d'une session. Une requête refusée (409) ne touche
+  // pas au verrou : seul l'appel qui l'a posé le relâche, même en cas d'erreur.
+  const locked = async <T>(session: Session, run: () => Promise<T>): Promise<T> => {
+    if (session.busy) throw new EdError('Une opération est déjà en cours.', 409);
+    session.busy = true;
+    try {
+      return await run();
+    } finally {
+      session.busy = false;
+    }
+  };
+
+  const authenticated = (session: Session | undefined): Session => {
+    if (!session) throw new EdError('Votre session a expiré. Reconnectez-vous.', 401);
+    return session;
+  };
+
+  // Routes POST de l'API : chacune renvoie le corps JSON d'une réponse 200 ou lève
+  // une EdError. Les contrôles communs (hôte, CSRF, taille, JSON) sont déjà faits.
+  const routes = new Map<string, (ctx: RouteContext) => Promise<unknown>>([
+    [
+      '/api/logout',
+      async ({ id, session, res }) => {
+        if (session?.busy)
+          throw new EdError('Synchronisation en cours. Réessayez la déconnexion après son achèvement.', 409);
+        session?.client.clear();
+        sessions.delete(id);
+        res.setHeader('Set-Cookie', 'orbite=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
+        return { state: 'anonymous' };
+      },
+    ],
+    [
+      '/api/login',
+      async ({ id, session, data, res }) => {
+        const now = Date.now();
+        while (attempts.length && (attempts[0] ?? 0) < now - 60000) attempts.shift();
+        if (attempts.length >= 6) throw new EdError('Trop de tentatives. Attendez une minute.', 429);
+        const { username, password } = data;
+        if (
+          typeof username !== 'string' ||
+          !username.trim() ||
+          username.length > 256 ||
+          typeof password !== 'string' ||
+          !password ||
+          password.length > 1024
+        )
+          throw new EdError('Renseignez vos identifiants ÉcoleDirecte.', 400);
+        if (session?.busy) throw new EdError('Une opération est déjà en cours.', 409);
+        attempts.push(now);
+        // Nouvel identifiant à chaque connexion (pas de fixation de session) ; la
+        // session naît courte et n'est prolongée qu'une fois authentifiée.
+        session?.client.clear();
+        sessions.delete(id);
+        const sid = randomBytes(32).toString('hex');
+        const created: Session = { client: clientFactory(), expires: now + PENDING_MINUTES * 60000, busy: false };
+        sessions.set(sid, created);
+        res.setHeader('Set-Cookie', `orbite=${sid}; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800`);
+        return locked(created, async () => {
+          const result = await created.client.login(username.trim(), password);
+          if (result.state === 'authenticated') created.expires = Date.now() + SESSION_HOURS * 3600000;
+          return result;
+        });
+      },
+    ],
+    [
+      // L'IA n'utilise pas le verrou `busy` : elle ne parle pas à ÉcoleDirecte et ne
+      // doit pas bloquer le chargement des notes ou des devoirs.
+      '/api/ai',
+      async ({ id, session, data }) => {
+        const current = authenticated(session);
+        if (current.client.state !== 'authenticated') throw new EdError('Terminez la connexion à ÉcoleDirecte.', 401);
+        const { input } = data;
+        if (
+          Object.keys(data).some((key) => key !== 'input') ||
+          typeof input !== 'string' ||
+          !input.trim() ||
+          input.length > 8000
+        )
+          throw new EdError('Envoyez uniquement un texte input de 1 à 8 000 caractères.', 400);
+        if (!aiClient.configured) throw new EdError('OpenAI n’est pas configuré sur le serveur.', 503);
+        if (current.aiBusy || aiActive >= 2)
+          throw new EdError('Une demande IA est déjà en cours. Réessayez dans un instant.', 429);
+        const now = Date.now();
+        current.aiAttempts ??= [];
+        for (const list of [current.aiAttempts, aiAttempts])
+          while (list.length && (list[0] ?? 0) <= now - 60000) list.shift();
+        if (current.aiAttempts.length >= 10 || aiAttempts.length >= 30)
+          throw new EdError('Trop de demandes IA. Attendez une minute.', 429);
+        current.aiAttempts.push(now);
+        aiAttempts.push(now);
+        current.aiBusy = true;
+        aiActive++;
+        let result: AIResult;
+        try {
+          result = await aiClient.respond(input);
+        } finally {
+          current.aiBusy = false;
+          aiActive--;
+        }
+        // La session a pu être fermée ou expirer pendant l'appel (jusqu'à 45 s).
+        if (sessions.get(id) !== current || current.expires <= Date.now() || current.client.state !== 'authenticated')
+          throw new EdError('Votre session a expiré. Reconnectez-vous.', 401);
+        return result;
+      },
+    ],
+    [
+      '/api/verify',
+      async ({ session, data }) => {
+        const current = authenticated(session);
+        return locked(current, async () => {
+          current.verifyAttempts = (current.verifyAttempts || 0) + 1;
+          if (current.verifyAttempts > 6) {
+            current.client.clear();
+            throw new EdError('Vérifications trop nombreuses. Reconnectez-vous.', 429);
+          }
+          const result = await current.client.verify(data);
+          if (result.state === 'authenticated') current.expires = Date.now() + SESSION_HOURS * 3600000;
+          return result;
+        });
+      },
+    ],
+    [
+      '/api/homework',
+      async ({ session, data }) => {
+        const current = authenticated(session);
+        // Le cache est lu sous verrou : pendant un chargement, la réponse reste 409.
+        return locked(current, async () => {
+          const childId = data.childId;
+          // Seuls les élèves déjà renvoyés par le tableau de bord de cette session sont
+          // acceptés : le navigateur ne peut pas choisir un identifiant arbitraire.
+          if (typeof childId !== 'string' || !current.cache?.children.some((c) => c.id === childId))
+            throw new EdError('Élève introuvable.', 404);
+          current.homeworkCache ??= new Map();
+          const cursor = data.cursor ?? null;
+          if (cursor !== null && (typeof cursor !== 'number' || !Number.isSafeInteger(cursor) || cursor < 0))
+            throw new EdError('Pagination invalide.', 400);
+          const cacheKey = childId + ':' + String(cursor);
+          const cached = current.homeworkCache.get(cacheKey);
+          if (cached && Date.now() - cached.time < 60000) return cached.value;
+          const result = await current.client.homeworkForChild(childId, { cursor });
+          current.homeworkCache.set(cacheKey, { time: Date.now(), value: result });
+          return result;
+        });
+      },
+    ],
+    [
+      '/api/dashboard',
+      async ({ session }) => {
+        const current = authenticated(session);
+        return locked(current, async () => {
+          if (current.cache && Date.now() - (current.cacheTime ?? 0) < 60000) return current.cache;
+          const result = await current.client.dashboard();
+          current.cache = result;
+          current.cacheTime = Date.now();
+          return result;
+        });
+      },
+    ],
+  ]);
+
   const server = http.createServer(async (req, res) => {
     const host = req.headers.host || '';
     const address = server.address() as AddressInfo;
@@ -178,9 +360,6 @@ export function createApp({
       res.writeHead(status, { ...headers, 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(data));
     };
-    let session: Session | undefined;
-    let ownsLock = false;
-    let ownsAiLock = false;
     try {
       // Contre le DNS rebinding et les requêtes intersites : seul l'hôte d'écoute est
       // accepté, et une Origin éventuelle doit lui correspondre exactement.
@@ -201,7 +380,7 @@ export function createApp({
       }
 
       const id = /(?:^|; )orbite=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1] ?? '';
-      session = sessions.get(id);
+      let session = sessions.get(id);
       if (session && Date.now() > session.expires) {
         session.client.clear();
         sessions.delete(id);
@@ -229,135 +408,9 @@ export function createApp({
       }
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw new EdError('Données invalides.', 400);
 
-      if (path === '/api/logout') {
-        if (session?.busy)
-          throw new EdError('Synchronisation en cours. Réessayez la déconnexion après son achèvement.', 409);
-        session?.client.clear();
-        sessions.delete(id);
-        res.setHeader('Set-Cookie', 'orbite=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
-        json(200, { state: 'anonymous' });
-        return;
-      }
-
-      if (path === '/api/login') {
-        const now = Date.now();
-        while (attempts.length && (attempts[0] ?? 0) < now - 60000) attempts.shift();
-        if (attempts.length >= 6) throw new EdError('Trop de tentatives. Attendez une minute.', 429);
-        if (
-          typeof data.username !== 'string' ||
-          !data.username.trim() ||
-          data.username.length > 256 ||
-          typeof data.password !== 'string' ||
-          !data.password ||
-          data.password.length > 1024
-        )
-          throw new EdError('Renseignez vos identifiants ÉcoleDirecte.', 400);
-        if (session?.busy) throw new EdError('Une opération est déjà en cours.', 409);
-        attempts.push(now);
-        // Nouvel identifiant à chaque connexion (pas de fixation de session) ; la
-        // session verrouillée naît courte et n'est prolongée qu'une fois authentifiée.
-        session?.client.clear();
-        sessions.delete(id);
-        const sid = randomBytes(32).toString('hex');
-        session = { client: clientFactory(), expires: now + PENDING_MINUTES * 60000, busy: true };
-        sessions.set(sid, session);
-        ownsLock = true;
-        res.setHeader('Set-Cookie', `orbite=${sid}; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800`);
-        const result = await session.client.login(data.username.trim(), data.password);
-        if (result.state === 'authenticated') session.expires = Date.now() + SESSION_HOURS * 3600000;
-        json(200, result);
-        return;
-      }
-
-      if (!session) throw new EdError('Votre session a expiré. Reconnectez-vous.', 401);
-      const current = session;
-
-      // L'IA n'utilise pas le verrou `busy` : elle ne parle pas à ÉcoleDirecte et ne
-      // doit pas bloquer le chargement des notes ou des devoirs.
-      if (path === '/api/ai') {
-        if (current.client.state !== 'authenticated') throw new EdError('Terminez la connexion à ÉcoleDirecte.', 401);
-        if (
-          Object.keys(data).some((key) => key !== 'input') ||
-          typeof data.input !== 'string' ||
-          !data.input.trim() ||
-          data.input.length > 8000
-        )
-          throw new EdError('Envoyez uniquement un texte input de 1 à 8 000 caractères.', 400);
-        if (!aiClient.configured) throw new EdError('OpenAI n’est pas configuré sur le serveur.', 503);
-        if (current.aiBusy || aiActive >= 2)
-          throw new EdError('Une demande IA est déjà en cours. Réessayez dans un instant.', 429);
-        const now = Date.now();
-        current.aiAttempts ??= [];
-        for (const list of [current.aiAttempts, aiAttempts])
-          while (list.length && (list[0] ?? 0) <= now - 60000) list.shift();
-        if (current.aiAttempts.length >= 10 || aiAttempts.length >= 30)
-          throw new EdError('Trop de demandes IA. Attendez une minute.', 429);
-        current.aiAttempts.push(now);
-        aiAttempts.push(now);
-        current.aiBusy = true;
-        aiActive++;
-        ownsAiLock = true;
-        const result = await aiClient.respond(data.input);
-        // La session a pu être fermée ou expirer pendant l'appel (jusqu'à 45 s).
-        if (sessions.get(id) !== current || current.expires <= Date.now() || current.client.state !== 'authenticated')
-          throw new EdError('Votre session a expiré. Reconnectez-vous.', 401);
-        json(200, result);
-        return;
-      }
-
-      // Une requête refusée ici ne doit pas relâcher le verrou d'une autre : seul le
-      // gestionnaire qui pose `busy` le libère dans le `finally` (cf. `ownsLock`).
-      if (current.busy) throw new EdError('Une opération est déjà en cours.', 409);
-      current.busy = true;
-      ownsLock = true;
-
-      if (path === '/api/verify') {
-        current.verifyAttempts = (current.verifyAttempts || 0) + 1;
-        if (current.verifyAttempts > 6) {
-          current.client.clear();
-          throw new EdError('Vérifications trop nombreuses. Reconnectez-vous.', 429);
-        }
-        const result = await current.client.verify(data);
-        if (result.state === 'authenticated') current.expires = Date.now() + SESSION_HOURS * 3600000;
-        json(200, result);
-        return;
-      }
-
-      if (path === '/api/homework') {
-        const childId = data.childId;
-        // Seuls les élèves déjà renvoyés par le tableau de bord de cette session sont
-        // acceptés : le navigateur ne peut pas choisir un identifiant arbitraire.
-        if (typeof childId !== 'string' || !current.cache?.children.some((c) => c.id === childId))
-          throw new EdError('Élève introuvable.', 404);
-        current.homeworkCache ??= new Map();
-        const cursor = data.cursor ?? null;
-        if (cursor !== null && (!Number.isSafeInteger(cursor) || (cursor as number) < 0))
-          throw new EdError('Pagination invalide.', 400);
-        const cacheKey = childId + ':' + String(cursor);
-        const cached = current.homeworkCache.get(cacheKey);
-        if (cached && Date.now() - cached.time < 60000) {
-          json(200, cached.value);
-          return;
-        }
-        const result = await current.client.homeworkForChild(childId, { cursor: cursor as number | null });
-        current.homeworkCache.set(cacheKey, { time: Date.now(), value: result });
-        json(200, result);
-        return;
-      }
-
-      if (path === '/api/dashboard') {
-        if (current.cache && Date.now() - (current.cacheTime ?? 0) < 60000) {
-          json(200, current.cache);
-          return;
-        }
-        const result = await current.client.dashboard();
-        current.cache = result;
-        current.cacheTime = Date.now();
-        json(200, result);
-        return;
-      }
-
-      throw new EdError('Route introuvable.', 404);
+      const route = routes.get(path);
+      if (!route) throw new EdError('Route introuvable.', 404);
+      json(200, await route({ id, session, data, res }));
     } catch (error) {
       // Seuls les messages EdError, rédigés pour l'utilisateur, sont transmis ; toute
       // autre erreur reste générique pour ne pas exposer de détail interne.
@@ -365,12 +418,6 @@ export function createApp({
         error: error instanceof EdError ? error.message : 'Erreur locale inattendue.',
         code: (error as { code?: unknown })?.code,
       });
-    } finally {
-      if (session && ownsLock) session.busy = false;
-      if (ownsAiLock && session) {
-        session.aiBusy = false;
-        aiActive--;
-      }
     }
   });
 

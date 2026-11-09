@@ -16,7 +16,7 @@
  *   pour illustrer les alertes) et trois du primaire, qui doivent être masqués
  *   par le filtre `isSecondary` (la dernière, en grande section, n'a même aucune note).
  * - Aucun appel réseau : en démonstration, l'IA renvoie un texte fixe
- *   (`loadCoaching` dans `app.ts`).
+ *   (`loadCoaching` dans `coaching-panel.ts`).
  * - Toute évolution des types partagés doit être répercutée ici (le
  *   typage le signale).
  *

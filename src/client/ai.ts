@@ -17,7 +17,7 @@
  * - Le texte renvoyé vient d'un modèle : l'afficher avec `textContent`.
  *
  * Liens : `src/server/server.ts` (route `/api/ai`), `src/client/coaching.ts`,
- * `src/client/app.ts`.
+ * `src/client/coaching-panel.ts`.
  */
 import type { AIResult, ApiError } from '../shared/types.ts';
 
@@ -29,7 +29,7 @@ export async function askAI(input: string, { signal }: { signal?: AbortSignal } 
   const response = await fetch('/api/ai', {
     method: 'POST',
     credentials: 'same-origin',
-    signal,
+    signal: signal ?? null,
     headers: { 'Content-Type': 'application/json', 'X-Orbite-Client': '1' },
     body: JSON.stringify({ input }),
   });
