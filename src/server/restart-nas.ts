@@ -1,19 +1,20 @@
 /**
- * Redémarrage de l'instance LAN d'Orbite sur le NAS.
+ * Redémarrage de l'instance réseau local d'Orbite sur un serveur Linux (NAS, mini-PC).
  *
- * Rôle : script d'exploitation lancé à la main sur le NAS (WD PR2100, Linux) après
+ * Rôle : script d'exploitation lancé à la main sur la machine serveur après
  * une mise à jour (`node dist/server/restart-nas.js`). Il arrête uniquement le
  * serveur Orbite de ce dossier, le relance détaché, puis attend qu'il réponde.
  * Il n'est jamais importé par l'application.
  *
  * Fonctionnement :
- * 1. Lit HOST et PORT dans le `.env` du projet.
+ * 1. Lit HOST, PORT et ORBITE_LOG (facultatif) dans le `.env` du projet.
  * 2. Parcourt `/proc` pour trouver les processus à arrêter : même exécutable Node,
  *    même dossier courant, script serveur reconnu, et variable
  *    `ORBITE_NAS_INSTANCE` ou `PORT` correspondante.
  * 3. Envoie SIGTERM (arrêt propre qui sauvegarde les sessions) et attend jusqu'à 5 s.
- * 4. Relance `dist/server/server.js` détaché, journal ajouté à
- *    `/mnt/HD/HD_a2/orbite/lan.log`, puis interroge `/api/session` jusqu'à 6 s.
+ * 4. Relance `dist/server/server.js` détaché, journal ajouté à `ORBITE_LOG`
+ *    (défaut : `orbite.log` à la racine du projet), puis interroge `/api/session`
+ *    jusqu'à 6 s.
  *
  * Points d'attention :
  * - Le filtrage strict évite de tuer une autre instance (port local 3210, autre
@@ -21,7 +22,6 @@
  * - Aucun SIGKILL : si l'ancien serveur ne s'arrête pas, le script échoue plutôt
  *   que de risquer un coffre de sessions écrit à moitié.
  * - Dépend de `/proc` : ne fonctionne pas sur macOS.
- * - Le chemin du journal est propre à ce NAS.
  *
  * Liens : `start-nas.sh` (démarrage initial), `server.ts` (processus relancé).
  */
@@ -36,7 +36,7 @@ const config = parseEnv(await readFile(directory + '/.env', 'utf8'));
 const hostname = config.HOST?.trim();
 const port = Number(config.PORT);
 if (!hostname || !Number.isInteger(port) || port < 1 || port > 65535)
-  throw new Error('Renseignez HOST et PORT (1 à 65535) dans le fichier .env du NAS.');
+  throw new Error('Renseignez HOST et PORT (1 à 65535) dans le fichier .env du serveur.');
 const probeHost = hostname === '0.0.0.0' ? '127.0.0.1' : hostname;
 const address = `http://${probeHost.includes(':') ? '[' + probeHost + ']' : probeHost}:${port}`;
 const executable = await realpath(process.execPath);
@@ -74,7 +74,8 @@ for (const pid of targets) process.kill(pid, 'SIGTERM');
 for (let i = 0; i < 50 && targets.some(alive); i++) await sleep(100);
 if (targets.some(alive)) throw new Error('Ancien serveur encore actif : arrêt du redémarrage.');
 
-const log = await open('/mnt/HD/HD_a2/orbite/lan.log', 'a');
+const logFile = config.ORBITE_LOG?.trim() || directory + '/orbite.log';
+const log = await open(logFile, 'a');
 const child = spawn(executable, [directory + '/' + serverScript], {
   cwd: directory,
   env: { ...process.env, HOST: hostname, PORT: String(port), ORBITE_NAS_INSTANCE: directory },
@@ -100,5 +101,5 @@ for (let i = 0; i < 20; i++) {
     }
   } catch {}
 }
-if (!ready) throw new Error('Serveur indisponible : consulter /mnt/HD/HD_a2/orbite/lan.log');
+if (!ready) throw new Error('Serveur indisponible : consulter ' + logFile);
 console.log(`Orbite redémarré : ${address} — sessions non expirées conservées.`);

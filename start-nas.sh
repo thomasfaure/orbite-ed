@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-cd /mnt/HD/HD_a2/orbite/ed-family
+cd "$(dirname "$0")"
 unset HOST PORT
-export ORBITE_NAS_INSTANCE="$PWD"
-exec /mnt/HD/HD_a2/orbite/runtime/node --env-file=.env dist/server/server.js
+export ORBITE_NAS_INSTANCE="$(pwd -P)"
+exec "${ORBITE_NODE:-node}" --env-file=.env dist/server/server.js

@@ -146,24 +146,37 @@ L’interface utilise désormais des fonds clairs, des cartes pastel, des chiffr
 
 Titres factuels : Tableau de bord, Résultats par élève, Synthèse, Baisses récentes par matière et Toutes les notes. Suppression des slogans, sous-titres décoratifs, encouragements génériques et illustration orbitale de l’accueil. Espacements réduits ; thème clair conservé.
 
-## NAS PR2100 — accès familial
+## Serveur sur le réseau local (optionnel)
 
-Le serveur conserve son écoute locale par défaut. HOST permet de sélectionner
-une adresse d'écoute explicite, également ajoutée à la liste des hôtes autorisés.
-Le contrôle d'origine reste actif.
+Le serveur écoute `127.0.0.1` par défaut. Pour le rendre accessible aux autres
+appareils de la maison (par exemple depuis un NAS ou un mini-PC sous Linux), définir
+dans le `.env` du serveur `HOST` (adresse réseau de la machine, ajoutée à la liste
+des hôtes autorisés) et `PORT`. Le contrôle d'origine reste actif.
 
-Sur le NAS 192.168.1.53, start-nas.sh lance le serveur sur
-http://192.168.1.53:3211. Le port distinct laisse fonctionner le premier serveur
-local et son tunnel pendant la transition.
+Sur la machine serveur, il suffit de Node 24 ou supérieur et des dossiers `dist/`
+(produit par `npm run build`) et `public/`, avec `package.json`, `start-nas.sh` et
+`.env` : ni TypeScript ni `node_modules`. Deux scripts facilitent l'exploitation
+sous Linux :
 
-Lancer : nohup sh /mnt/HD/HD_a2/orbite/ed-family/start-nas.sh > /mnt/HD/HD_a2/orbite/lan.log 2>&1 &
+```sh
+# Démarrage (ORBITE_NODE : chemin de Node s'il n'est pas dans le PATH)
+ORBITE_NODE=/chemin/vers/node nohup sh start-nas.sh > orbite.log 2>&1 &
 
-Cet accès HTTP est destiné uniquement au réseau domestique de confiance :
-le trajet navigateur-NAS n'est pas chiffré. Ne pas rediriger ce port sur Internet.
-Réserver l'adresse 192.168.1.53 dans le DHCP du routeur.
-Le démarrage automatique reste à raccorder au mécanisme réellement disponible
-sur le NAS, puis à vérifier après redémarrage. Ne pas supposer qu'un crontab
-standard persiste sous WD OS 5.
+# Après une mise à jour des fichiers : arrêt propre puis relance
+/chemin/vers/node dist/server/restart-nas.js
+```
+
+`restart-nas.js` lit `HOST` et `PORT` dans le `.env`, arrête uniquement le serveur
+Orbite de ce dossier (même exécutable Node, marqueur `ORBITE_NAS_INSTANCE` ou port
+configuré), le relance détaché et vérifie qu'il répond. Son journal va dans
+`ORBITE_LOG` (défini dans le `.env`) ou, à défaut, dans `orbite.log` à la racine du
+projet. Les sessions non expirées sont restaurées. Le coffre de sessions est lié au
+port : changer de port peut demander une reconnexion.
+
+Cet accès HTTP est destiné uniquement au réseau domestique de confiance : le trajet
+navigateur-serveur n'est pas chiffré. Ne pas rediriger ce port sur Internet et
+réserver l'adresse de la machine dans le DHCP du routeur. Le démarrage automatique
+au boot dépend du système de la machine et reste à configurer.
 
 ## Devoirs à faire
 
@@ -183,21 +196,7 @@ Les appels restent séquentiels pour respecter la rotation des jetons.
 
 Les tests couvrent notamment filtrage, dates, détails incomplets,
 expiration et erreurs partielles. Les devoirs réels restent à valider après
-déploiement et reconnexion sur le NAS.
-
-Le runtime du NAS (`/mnt/HD/HD_a2/orbite/runtime/node`) doit être un Node 24 ou
-supérieur pour Linux x64 (processeur Intel du PR2100) : vérifier avec
-`/mnt/HD/HD_a2/orbite/runtime/node -v` avant le déploiement.
-
-Pour déployer depuis le Mac, exécuter `npm run build`, copier le dossier ed-family
-(au minimum `dist/`, `public/`, `start-nas.sh` et `package.json` ; `node_modules/`
-est inutile sur le NAS) vers sshd@192.168.1.53:/mnt/HD/HD_a2/orbite/ puis exécuter
-sur le NAS :
-/mnt/HD/HD_a2/orbite/runtime/node /mnt/HD/HD_a2/orbite/ed-family/dist/server/restart-nas.js
-
-Le redémarrage cible uniquement les processus Node du même exécutable et
-dossier, exécutant server.js avec le marqueur ORBITE_NAS_INSTANCE, ou le port configuré pour les anciennes installations.
-Il restaure les sessions sauvegardées non expirées et conserve le script de démarrage WD.
+déploiement et reconnexion.
 
 ## Chargement progressif
 
@@ -390,23 +389,6 @@ parent est conservé plutôt qu'une matière devinée. Deux sous-matières Oral
 appartenant à des langues différentes restent distinctes. 56 tests passent.
 Redémarrer Node puis actualiser les données pour appliquer cette normalisation.
 
-
-## Adresse du NAS configurable
-
-Le fichier `.env` du NAS doit définir `HOST` (adresse réseau du NAS) et `PORT`
-(port d'écoute, habituellement 3211). `start-nas.sh` utilise le chargeur `.env`
-natif de Node, après retrait des anciennes variables HOST/PORT héritées.
-`restart-nas.js` lit les mêmes valeurs avec le parseur Node, puis les utilise
-pour le lancement et le contrôle de disponibilité. Aucun script de production
-ne contient l'adresse IP du NAS en dur. La clé OpenAI existante reste dans le
-même fichier. Le fichier `.env.example` conserve les valeurs locales par défaut.
-
-Les nouvelles instances portent un marqueur permettant de les retrouver même
-après changement d'adresse ou de port. Pour la première migration, conserver
-le port actuel afin de retrouver l'ancienne instance non marquée. Le coffre de
-sessions est lié au port ; changer de port peut demander une reconnexion.
-Après transfert des scripts mis à jour et configuration du `.env`, lancer
-`/mnt/HD/HD_a2/orbite/runtime/node /mnt/HD/HD_a2/orbite/ed-family/dist/server/restart-nas.js`.
 
 ## TypeScript
 

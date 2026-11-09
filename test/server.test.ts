@@ -160,17 +160,17 @@ test('assets autorisés seulement et limitation des connexions', async (t) => {
 });
 
 test('LAN explicite : hôte et origine exacts, autres hôtes refusés', async (t) => {
-  const h = harness({ hostname: '192.168.1.53' });
+  const h = harness({ hostname: '192.168.1.20' });
   t.after(() => h.server.emit('close'));
   assert.equal(
-    (await h.request('/api/session', { headers: { host: '192.168.1.53:3210', origin: 'http://192.168.1.53:3210' } }))
+    (await h.request('/api/session', { headers: { host: '192.168.1.20:3210', origin: 'http://192.168.1.20:3210' } }))
       .status,
     200,
   );
-  assert.equal((await h.request('/api/session', { headers: { host: '192.168.1.54:3210' } })).status, 403);
-  assert.equal((await h.request('/api/session', { headers: { host: '192.168.1.53:3211' } })).status, 403);
+  assert.equal((await h.request('/api/session', { headers: { host: '192.168.1.21:3210' } })).status, 403);
+  assert.equal((await h.request('/api/session', { headers: { host: '192.168.1.20:3211' } })).status, 403);
   assert.equal(
-    (await h.request('/api/session', { headers: { host: '192.168.1.53:3210', origin: 'http://evil.test' } })).status,
+    (await h.request('/api/session', { headers: { host: '192.168.1.20:3210', origin: 'http://evil.test' } })).status,
     403,
   );
 });
