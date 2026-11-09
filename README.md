@@ -1,6 +1,20 @@
+<p align="center"><img src="public/favicon.svg" alt="Logo Orbite" width="96" height="96"></p>
+
 # Orbite · Tableau de bord familial ÉcoleDirecte
 
 Client web local écrit en TypeScript, exécuté par Node.js 24 ou supérieur (version épinglée dans `.nvmrc` : `nvm use`). Aucune dépendance d'exécution, aucun compte externe. Les seules dépendances npm (TypeScript, types Node, Sass, Prettier, Biome) servent au développement et à la compilation.
+
+Orbite rassemble sur un seul écran les notes, moyennes, tendances et devoirs de tous vos enfants inscrits au collège ou au lycée, à partir de votre compte parent ÉcoleDirecte. Tout tourne sur votre ordinateur (ou un NAS familial) ; seuls les conseils IA, optionnels, transmettent des moyennes anonymes à OpenAI.
+
+![Vue d'ensemble de la famille : une carte par élève avec moyenne, tendance, écart à la classe, notes des sept derniers jours et devoirs à faire](docs/vue-famille.png)
+
+*Vue d'ensemble : une carte par élève, avec moyenne, tendance, écart à la classe, dernières notes et devoirs à venir.*
+
+![Vue d'un élève : graphique de l'évolution de sa moyenne, de la moyenne de classe et de la tendance sur 30 jours](docs/vue-eleve.png)
+
+*Vue d'un élève : évolution de sa moyenne comparée à celle de la classe, avec la tendance glissante sur 14 ou 30 jours.*
+
+Captures réalisées en mode démonstration, avec des élèves et des notes fictifs.
 
 ## Lancer
 
