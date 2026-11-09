@@ -98,12 +98,19 @@ test('moyenne générale : moyennes par matière, sous-matières puis coefficien
   assert.equal(generalAverage(notes), (12 + 13) / 2);
 });
 
-test('sous-matières : repli sur toutes les notes si un coefficient manque ou si la matière a ses propres notes', () => {
+test('sous-matières : repli sur toutes les notes si un coefficient manque, est partout à 0, ou si la matière a ses propres notes', () => {
   const notes = [graded('ANG:E', 16), graded('ANG:O', 10)];
   assert.equal(generalAverage(notes, [subject('ANG:E', 2)]), 13);
   assert.equal(generalAverage([...notes, graded('ANG:', 7)], [subject('ANG:E', 2), subject('ANG:O', 1)]), 11);
-  // Des sous-matières toutes à coefficient 0 ne comptent pas.
-  assert.equal(generalAverage(notes, [subject('ANG:E', 0), subject('ANG:O', 0)]), null);
+  // Collège : ÉcoleDirecte met les sous-matières à coefficient 0 et moyenne toutes les notes de la matière.
+  const college = [graded('ANG:E', 16), graded('ANG:E', 14), graded('ANG:O', 9)];
+  const zero = [subject('ANG:', 1), subject('ANG:E', 0), subject('ANG:O', 0)];
+  assert.equal(generalAverage(college, zero), 13);
+  const rows = subjectAverages(
+    college.map((n) => ({ ...n, subject: 'Anglais', classAverage: null })),
+    zero,
+  );
+  assert.equal(rows[0]?.average, 13);
 });
 
 test('coefficient de matière 0 exclu, absent compté pour 1', () => {

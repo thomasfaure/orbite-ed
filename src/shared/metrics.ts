@@ -136,10 +136,10 @@ const pairedClassScore = (n: ValidGrade): number => (paired(n) ? classScore(n) :
 
 /**
  * Moyenne de chaque matière parente. Ses sous-matières sont moyennées séparément,
- * puis pondérées par leurs coefficients ; si une seule n'a pas de coefficient, ou
- * si des notes sont rattachées à la matière elle-même, toutes les notes de la
- * matière sont moyennées ensemble. Des sous-matières toutes à coefficient 0 ne
- * comptent pas : la matière n'a alors pas de moyenne.
+ * puis pondérées par leurs coefficients. Toutes les notes de la matière sont
+ * moyennées ensemble si une sous-matière n'a pas de coefficient, si aucune n'a de
+ * coefficient positif (cas du collège sur ÉcoleDirecte, où elles sont toutes à 0),
+ * ou si des notes sont rattachées à la matière elle-même.
  */
 function scoreSubjects<T extends Gradable>(notes: readonly T[], meta: Map<string, Subject>, field: Field<T>) {
   const parents = new Map<string, Map<string, ValidGrade<T>[]>>();
@@ -165,9 +165,7 @@ function scoreSubjects<T extends Gradable>(notes: readonly T[], meta: Map<string
     if (parts.every((p) => p.weight !== null)) {
       const counted = parts.filter((p) => p.average !== null && (p.weight as number) > 0);
       const total = counted.reduce((sum, p) => sum + (p.weight as number), 0);
-      average = total
-        ? counted.reduce((sum, p) => sum + (p.average as number) * (p.weight as number), 0) / total
-        : null;
+      if (total) average = counted.reduce((sum, p) => sum + (p.average as number) * (p.weight as number), 0) / total;
     }
     return {
       id,
